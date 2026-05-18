@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: orchestrator
+      POSTGRES_USER: orchestrator
+      POSTGRES_PASSWORD: orchestrator
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  worker:
+    build:
+      context: ./apps/api
+    command: python -m app.workers.dispatcher
+    environment:
+      APP_ENVIRONMENT: production
+      APP_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
+      APP_REDIS_URL: redis://redis:6379/0
+      # Same webhook as API — worker POSTs Slack messages here.
+      APP_SLACK_WEBHOOK_URL: ${APP_SLACK_WEBHOOK_URL:-https://example.invalid/webhook}
+      # Optional on worker: dispatcher does not sign/verify JWT today; safe to omit or duplicate API secret.
+      APP_JWT_SECRET_KEY: ${APP_JWT_SECRET_KEY:-dev-secret-change-in-production-use-long-random-string}
+    depends_on:
+      redis:
+        condition: service_started
+      api:
+        condition: service_started
+
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      APP_ENVIRONMENT: production
+      APP_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
+      APP_REDIS_URL: redis://redis:6379/0
+      APP_DEFAULT_TENANT: demo-tenant
+      APP_SLACK_WEBHOOK_URL: ${APP_SLACK_WEBHOOK_URL:-https://example.invalid/webhook}
+      # Required on API: login + validating Bearer tokens.
+      APP_JWT_SECRET_KEY: ${APP_JWT_SECRET_KEY:-dev-secret-change-in-production-use-long-random-string}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+
+  web:
+    build:
+      context: ./apps/web
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  redis_data:

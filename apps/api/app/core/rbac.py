@@ -1,0 +1,6 @@
+ROLE_ADMIN = "Admin"
+ROLE_MANAGER = "Manager"
+ROLE_EMPLOYEE = "Employee"
+ROLE_COMPLIANCE = "Compliance"
+ROLE_AUDITOR = "Auditor"
+ROLE_FINANCE = "Finance"
