@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Log in to GHCR
-        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        uses: docker/login-action@9f4a8ea54ed9055d5f86c993e1f2ffa674f98344
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -47,7 +47,7 @@ jobs:
 
       - name: Extract image metadata
         id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        uses: docker/metadata-action@4f5b5234679dfa19837d4942067c97d7df43b7b3
         with:
           images: ${{ matrix.image }}
           tags: |
@@ -59,7 +59,7 @@ jobs:
 
       - name: Build and push image
         id: push
-        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        uses: docker/build-push-action@789f68658055d3ca993799b232b5c46dfe3f114d
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
