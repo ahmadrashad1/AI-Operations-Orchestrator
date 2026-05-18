@@ -39,4 +39,3 @@ def require_roles(*allowed_roles: str) -> Callable[[Principal], Principal]:
         return principal
 
     return dependency
-

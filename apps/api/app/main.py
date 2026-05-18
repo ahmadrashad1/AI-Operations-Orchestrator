@@ -6,7 +6,6 @@ from app.api.v1.router import api_router
 from app.bootstrap import init_container
 from app.core.config import get_settings
 
-
 settings = get_settings()
 
 
@@ -34,4 +33,3 @@ def root() -> dict[str, str]:
         "status": "booting",
         "docs": "/docs",
     }
-

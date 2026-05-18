@@ -6,7 +6,6 @@ from app.domain.schemas import EventPublishRequest, InternalAgentExecuteRequest,
 from app.services.audit import AuditService
 from app.services.workflows import WorkflowService
 
-
 router = APIRouter()
 
 
@@ -34,4 +33,3 @@ def publish_event(
         tenant_id=principal.tenant_id,
     )
     return {"status": "accepted"}
-

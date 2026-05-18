@@ -50,4 +50,3 @@ class SlackApprovalConnector(BaseConnector):
             },
             idempotency_key=idempotency_key,
         )
-

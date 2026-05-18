@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 from app.bootstrap import get_container
 from app.main import app
 
-
 client = TestClient(app)
 
 
@@ -81,4 +80,3 @@ def test_approvals_complete_workflow_after_all_required_responses() -> None:
 
     assert finance_response.status_code == 200
     assert finance_response.json()["workflow"]["status"] == "completed"
-

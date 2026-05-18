@@ -9,12 +9,13 @@ Or locally with APP_DATABASE_URL set:
 
   cd apps/api && python scripts/seed_admin.py
 """
+
 from __future__ import annotations
 
 import argparse
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import Session
@@ -35,12 +36,16 @@ def main() -> None:
     settings = get_settings()
     engine = create_engine(settings.database_url, pool_pre_ping=True)
     user_id = args.user_id or str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     pw_hash = hash_password(args.password)
 
     with Session(engine) as session:
         email_lower = args.email.strip().lower()
-        existing = session.query(UserModel).filter(func.lower(UserModel.email) == email_lower).one_or_none()
+        existing = (
+            session.query(UserModel)
+            .filter(func.lower(UserModel.email) == email_lower)
+            .one_or_none()
+        )
         if existing:
             existing.hashed_password = pw_hash
             existing.roles = ["Admin", "Manager", "Employee"]

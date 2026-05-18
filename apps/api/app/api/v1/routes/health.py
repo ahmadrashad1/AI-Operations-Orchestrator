@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 
-
 router = APIRouter()
 
 
@@ -21,4 +20,3 @@ def readyz() -> dict[str, list[str] | str]:
             "integration-registry",
         ],
     }
-

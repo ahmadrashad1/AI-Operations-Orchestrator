@@ -1,7 +1,8 @@
 """JWT token generation and validation."""
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from jose import JWTError, jwt
@@ -51,8 +52,8 @@ class TokenClaims:
         self.roles = roles
         self.jti = jti
         self.token_type = token_type
-        self.exp = exp or datetime.now(timezone.utc)
-        self.iat = iat or datetime.now(timezone.utc)
+        self.exp = exp or datetime.now(UTC)
+        self.iat = iat or datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert claims to dictionary (Python objects)."""
@@ -69,8 +70,8 @@ class TokenClaims:
 
     def to_jwt_payload(self) -> dict[str, Any]:
         """JWT payload with numeric dates for python-jose."""
-        exp = self.exp or datetime.now(timezone.utc)
-        iat = self.iat or datetime.now(timezone.utc)
+        exp = self.exp or datetime.now(UTC)
+        iat = self.iat or datetime.now(UTC)
         return {
             "sub": self.user_id,
             "tenant_id": self.tenant_id,
@@ -87,9 +88,9 @@ class TokenClaims:
         if value is None:
             return None
         if isinstance(value, datetime):
-            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+            return value if value.tzinfo else value.replace(tzinfo=UTC)
         if isinstance(value, (int, float)):
-            return datetime.fromtimestamp(float(value), tz=timezone.utc)
+            return datetime.fromtimestamp(float(value), tz=UTC)
         raise ValueError("Invalid datetime claim")
 
     @classmethod
@@ -114,7 +115,11 @@ class TokenClaims:
 class JWTHandler:
     """JWT token handling."""
 
-    def __init__(self, app_settings: Settings | None = None, secret_key: str = "dev-secret-change-in-production"):
+    def __init__(
+        self,
+        app_settings: Settings | None = None,
+        secret_key: str = "dev-secret-change-in-production",
+    ):
         # If settings provided, use from there; otherwise use provided secret_key
         if app_settings:
             self.secret_key = app_settings.jwt_secret_key
@@ -140,7 +145,7 @@ class JWTHandler:
         if expires_delta is None:
             expires_delta = timedelta(minutes=self.access_token_expire_minutes)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         exp = now + expires_delta
 
         claims = TokenClaims(
@@ -169,7 +174,7 @@ class JWTHandler:
         if expires_delta is None:
             expires_delta = timedelta(days=self.refresh_token_expire_days)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         exp = now + expires_delta
 
         claims = TokenClaims(
@@ -190,7 +195,7 @@ class JWTHandler:
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
             claims = TokenClaims.from_dict(payload)
-            if claims.exp is not None and claims.exp < datetime.now(timezone.utc):
+            if claims.exp is not None and claims.exp < datetime.now(UTC):
                 raise ValueError("Token expired")
             return claims
         except JWTError as e:

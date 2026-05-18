@@ -21,7 +21,9 @@ class WorkflowService:
         self.audit_service = audit_service
         self.runtime = runtime
 
-    def create_workflow(self, payload: WorkflowCreateRequest, principal: Principal) -> WorkflowState:
+    def create_workflow(
+        self, payload: WorkflowCreateRequest, principal: Principal
+    ) -> WorkflowState:
         tenant_id = principal.tenant_id
         if payload.tenant_id and payload.tenant_id != principal.tenant_id:
             if "Admin" not in principal.roles:
@@ -54,10 +56,14 @@ class WorkflowService:
         self._assert_tenant_access(workflow=workflow, principal=principal)
         return workflow
 
-    def execute_agent(self, payload: InternalAgentExecuteRequest, principal: Principal) -> WorkflowState:
+    def execute_agent(
+        self, payload: InternalAgentExecuteRequest, principal: Principal
+    ) -> WorkflowState:
         workflow = self.repository.get(payload.workflow_id)
         self._assert_tenant_access(workflow=workflow, principal=principal)
-        workflow = self.runtime.execute_agent(workflow=workflow, agent_name=payload.agent_name, actor=principal.user_id)
+        workflow = self.runtime.execute_agent(
+            workflow=workflow, agent_name=payload.agent_name, actor=principal.user_id
+        )
         return self.repository.update(workflow)
 
     def _assert_tenant_access(self, workflow: WorkflowState, principal: Principal) -> None:

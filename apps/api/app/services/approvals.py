@@ -57,4 +57,3 @@ class ApprovalService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="The requested workflow belongs to a different tenant.",
             )
-

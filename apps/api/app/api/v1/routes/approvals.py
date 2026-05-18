@@ -5,7 +5,6 @@ from app.core.security import Principal
 from app.domain.schemas import ApprovalDecisionRequest, WorkflowEnvelope
 from app.services.approvals import ApprovalService
 
-
 router = APIRouter(prefix="/approval")
 
 

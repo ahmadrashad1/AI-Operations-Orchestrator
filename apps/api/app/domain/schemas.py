@@ -50,4 +50,3 @@ class EventPublishRequest(BaseModel):
     workflow_id: str
     action: str
     metadata: dict[str, Any] = Field(default_factory=dict)
-

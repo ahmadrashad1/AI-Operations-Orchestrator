@@ -1,10 +1,12 @@
 """Distributed locking using Redis."""
+
 from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING
 
 import redis
 
@@ -104,7 +106,9 @@ class DistributedLock:
 
 
 @contextmanager
-def workflow_lock(redis_url: str, workflow_id: str, timeout: int = 30) -> Generator[bool, None, None]:
+def workflow_lock(
+    redis_url: str, workflow_id: str, timeout: int = 30
+) -> Generator[bool, None, None]:
     """
     Context manager for workflow-level locking.
 

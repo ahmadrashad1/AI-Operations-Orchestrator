@@ -1,6 +1,7 @@
 # Alembic environment configuration
 
 """Alembic environment configuration."""
+
 import os
 from logging.config import fileConfig
 
@@ -22,7 +23,10 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    url = os.getenv("APP_DATABASE_URL", "postgresql+psycopg://orchestrator:orchestrator@localhost:5432/orchestrator")
+    url = os.getenv(
+        "APP_DATABASE_URL",
+        "postgresql+psycopg://orchestrator:orchestrator@localhost:5432/orchestrator",
+    )
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -36,7 +40,10 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    url = os.getenv("APP_DATABASE_URL", "postgresql+psycopg://orchestrator:orchestrator@localhost:5432/orchestrator")
+    url = os.getenv(
+        "APP_DATABASE_URL",
+        "postgresql+psycopg://orchestrator:orchestrator@localhost:5432/orchestrator",
+    )
 
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = url

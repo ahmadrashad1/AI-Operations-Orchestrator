@@ -4,9 +4,10 @@ This module provides a compact, testable graph executor that sequences
 extraction -> policy -> approval building -> dispatch. It is designed as
 an adapter so we can later swap a real LangGraph implementation.
 """
+
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
 
 from app.domain.models import WorkflowState
 
@@ -72,10 +73,16 @@ def build_default_graph(extractor, policy_engine, runtime) -> GraphExecutor:
         approvals = runtime._build_approvals(wf)
         if approvals:
             wf.approvals.extend(approvals)
-            wf.status = wf.status.__class__.waiting_approval if hasattr(wf.status, "waiting_approval") else wf.status
+            wf.status = (
+                wf.status.__class__.waiting_approval
+                if hasattr(wf.status, "waiting_approval")
+                else wf.status
+            )
             wf.current_state = "awaiting_approval"
         else:
-            wf.status = wf.status.__class__.completed if hasattr(wf.status, "completed") else wf.status
+            wf.status = (
+                wf.status.__class__.completed if hasattr(wf.status, "completed") else wf.status
+            )
             wf.current_state = "completed"
             runtime.audit_service.log(
                 workflow_id=wf.workflow_id,

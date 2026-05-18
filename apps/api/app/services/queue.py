@@ -1,11 +1,12 @@
 """Redis-based job queue for async dispatch."""
+
 from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, TYPE_CHECKING
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any
 
 import redis
 
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
     from redis.client import Redis
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     """Job status states."""
 
     PENDING = "pending"
@@ -44,8 +45,8 @@ class Job:
         self.status = status
         self.retry_count = retry_count
         self.max_retries = max_retries
-        self.created_at = created_at or datetime.now(timezone.utc)
-        self.updated_at = updated_at or datetime.now(timezone.utc)
+        self.created_at = created_at or datetime.now(UTC)
+        self.updated_at = updated_at or datetime.now(UTC)
         self.error = error
 
     def to_dict(self) -> dict[str, Any]:
@@ -82,8 +83,12 @@ class Job:
             status=JobStatus(data.get("status", "pending")),
             retry_count=int(data.get("retry_count", 0)),
             max_retries=int(data.get("max_retries", 5)),
-            created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None,
-            updated_at=datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else None,
+            created_at=datetime.fromisoformat(data["created_at"])
+            if data.get("created_at")
+            else None,
+            updated_at=datetime.fromisoformat(data["updated_at"])
+            if data.get("updated_at")
+            else None,
             error=err,
         )
 
@@ -139,7 +144,7 @@ class RedisJobQueue:
 
         job = Job.from_dict(job_data)
         job.status = JobStatus.COMPLETED
-        job.updated_at = datetime.now(timezone.utc)
+        job.updated_at = datetime.now(UTC)
         self._update_job(job)
         self.redis_client.lrem(self.processing_key, 1, job_id)
 
@@ -152,7 +157,7 @@ class RedisJobQueue:
         job = Job.from_dict(job_data)
         job.retry_count += 1
         job.error = error
-        job.updated_at = datetime.now(timezone.utc)
+        job.updated_at = datetime.now(UTC)
 
         if job.retry_count >= job.max_retries:
             job.status = JobStatus.FAILED
@@ -161,7 +166,7 @@ class RedisJobQueue:
         else:
             job.status = JobStatus.RETRYING
             # Re-enqueue with exponential backoff
-            backoff_seconds = min(2 ** job.retry_count, 3600)  # Max 1 hour
+            backoff_seconds = min(2**job.retry_count, 3600)  # Max 1 hour
             self.redis_client.rpush(self.queue_key, job_id)
             self.redis_client.expire(f"job:{job_id}", backoff_seconds)
 

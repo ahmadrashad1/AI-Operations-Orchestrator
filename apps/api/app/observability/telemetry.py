@@ -13,4 +13,3 @@ class TelemetryEvent(BaseModel):
 class MetricsCollector:
     def emit(self, event: TelemetryEvent) -> TelemetryEvent:
         return event
-

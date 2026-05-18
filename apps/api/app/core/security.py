@@ -59,11 +59,14 @@ def get_current_principal(
 
     # Fallback to header-based auth for development
     if settings.environment == "development":
+        roles = tuple(
+            part.strip() for part in (x_roles or "Admin,Manager").split(",") if part.strip()
+        )
         return Principal(
             user_id=x_user_id or "local-admin",
             tenant_id=x_tenant_id or settings.default_tenant,
             email="local-admin@localhost",
-            roles=tuple(part.strip() for part in (x_roles or "Admin,Manager").split(",") if part.strip()),
+            roles=roles,
         )
 
     # Production without JWT or headers
@@ -72,4 +75,3 @@ def get_current_principal(
         detail="Missing or invalid authentication",
         headers={"WWW-Authenticate": "Bearer"},
     )
-

@@ -6,6 +6,7 @@ Behavior:
 - If LLM is unavailable or fails, fall back to `RequestExtractionAgent`.
 - Cache successful extraction results in Redis keyed by sha256(request_text).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -22,8 +23,8 @@ import redis
 from pydantic import ValidationError
 
 from app.ai.extraction import RequestExtractionAgent
-from app.domain.models import ExtractedRequest
 from app.core.config import get_settings
+from app.domain.models import ExtractedRequest
 
 
 class LLMExtractionAgent:

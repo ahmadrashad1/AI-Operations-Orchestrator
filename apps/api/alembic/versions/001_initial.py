@@ -1,13 +1,15 @@
 """Initial migration: create workflows, audit_logs, users tables.
 
 Revision ID: 001_initial
-Revises: 
+Revises:
 Create Date: 2026-05-12 00:00:00.000000
 
 """
-from alembic import op
+
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "001_initial"
@@ -55,8 +57,12 @@ def upgrade() -> None:
     op.create_index("ix_audit_logs_workflow_id", "audit_logs", ["workflow_id"], unique=False)
     op.create_index("ix_audit_logs_tenant_id", "audit_logs", ["tenant_id"], unique=False)
     op.create_index("ix_audit_logs_created_at", "audit_logs", ["created_at"], unique=False)
-    op.create_index("idx_workflow_created", "audit_logs", ["workflow_id", "created_at"], unique=False)
-    op.create_index("idx_tenant_created_audit", "audit_logs", ["tenant_id", "created_at"], unique=False)
+    op.create_index(
+        "idx_workflow_created", "audit_logs", ["workflow_id", "created_at"], unique=False
+    )
+    op.create_index(
+        "idx_tenant_created_audit", "audit_logs", ["tenant_id", "created_at"], unique=False
+    )
 
     # Create users table
     op.create_table(

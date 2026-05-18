@@ -19,7 +19,11 @@ class RequestExtractionAgent:
         normalized = request_text.lower()
         quantity = self._extract_quantity(normalized)
         item_name, category, unit_cost = self._resolve_item(normalized)
-        urgency = "high" if any(word in normalized for word in ("urgent", "asap", "immediately")) else "normal"
+        urgency = (
+            "high"
+            if any(word in normalized for word in ("urgent", "asap", "immediately"))
+            else "normal"
+        )
         department = self._resolve_department(normalized)
         estimated_cost = quantity * unit_cost
 
@@ -55,4 +59,3 @@ class RequestExtractionAgent:
             if keyword in request_text:
                 return department
         return "operations"
-

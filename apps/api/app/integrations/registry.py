@@ -9,4 +9,3 @@ class ConnectorRegistry:
 
     def get(self, name: str) -> BaseConnector | None:
         return self._connectors.get(name)
-

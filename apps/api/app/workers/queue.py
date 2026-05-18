@@ -13,4 +13,3 @@ class QueueMessage(BaseModel):
 class QueueRouter:
     def publish(self, message: QueueMessage) -> QueueMessage:
         return message
-

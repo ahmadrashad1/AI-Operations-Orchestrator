@@ -21,4 +21,3 @@ class GmailConnector(BaseConnector):
             payload=payload,
             idempotency_key=idempotency_key,
         )
-

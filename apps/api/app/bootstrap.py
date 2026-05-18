@@ -5,7 +5,11 @@ from app.ai.llm_extraction import LLMExtractionAgent
 from app.ai.policy import PolicyEngine
 from app.core.config import get_settings
 from app.db.migrations import run_migrations
-from app.db.postgres import PostgresAuditRepository, PostgresUserRepository, PostgresWorkflowRepository
+from app.db.postgres import (
+    PostgresAuditRepository,
+    PostgresUserRepository,
+    PostgresWorkflowRepository,
+)
 from app.db.repositories import InMemoryAuditRepository, InMemoryWorkflowRepository
 from app.integrations.registry import ConnectorRegistry
 from app.integrations.slack import SlackApprovalConnector

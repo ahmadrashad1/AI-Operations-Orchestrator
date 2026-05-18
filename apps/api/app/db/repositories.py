@@ -27,7 +27,9 @@ class BaseWorkflowRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[WorkflowState]:
+    def list_by_tenant(
+        self, tenant_id: str, skip: int = 0, limit: int = 100
+    ) -> list[WorkflowState]:
         """List workflows for a tenant with pagination."""
         raise NotImplementedError
 
@@ -51,7 +53,9 @@ class BaseAuditRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[AuditLogRecord]:
+    def list_by_tenant(
+        self, tenant_id: str, skip: int = 0, limit: int = 100
+    ) -> list[AuditLogRecord]:
         """List all audit records for a tenant with pagination."""
         raise NotImplementedError
 
@@ -87,7 +91,9 @@ class InMemoryWorkflowRepository(BaseWorkflowRepository):
             )
         return workflow
 
-    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[WorkflowState]:
+    def list_by_tenant(
+        self, tenant_id: str, skip: int = 0, limit: int = 100
+    ) -> list[WorkflowState]:
         workflows = [w for w in self._items.values() if w.tenant_id == tenant_id]
         return workflows[skip : skip + limit]
 
@@ -111,7 +117,9 @@ class InMemoryAuditRepository(BaseAuditRepository):
     def list_by_workflow(self, workflow_id: str) -> list[AuditLogRecord]:
         return [record for record in self._items if record.workflow_id == workflow_id]
 
-    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[AuditLogRecord]:
+    def list_by_tenant(
+        self, tenant_id: str, skip: int = 0, limit: int = 100
+    ) -> list[AuditLogRecord]:
         records = [record for record in self._items if record.tenant_id == tenant_id]
         return records[skip : skip + limit]
 

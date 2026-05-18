@@ -1,8 +1,8 @@
 """PostgreSQL repository implementations using SQLAlchemy."""
+
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
@@ -47,7 +47,9 @@ class PostgresWorkflowRepository(BaseWorkflowRepository):
                 status=workflow.status.value,
                 current_state=workflow.current_state,
                 extraction=workflow.extraction.model_dump() if workflow.extraction else None,
-                policy_results=workflow.policy_results.model_dump() if workflow.policy_results else None,
+                policy_results=workflow.policy_results.model_dump()
+                if workflow.policy_results
+                else None,
                 approvals=[approval.model_dump() for approval in workflow.approvals],
                 execution_log=workflow.execution_log,
                 created_at=workflow.created_at,
@@ -61,7 +63,9 @@ class PostgresWorkflowRepository(BaseWorkflowRepository):
     def update(self, workflow: WorkflowState) -> WorkflowState:
         with Session(self.engine) as session:
             # Fetch existing workflow
-            stmt = select(WorkflowStateModel).where(WorkflowStateModel.workflow_id == workflow.workflow_id)
+            stmt = select(WorkflowStateModel).where(
+                WorkflowStateModel.workflow_id == workflow.workflow_id
+            )
             db_workflow = session.scalar(stmt)
 
             if db_workflow is None:
@@ -73,11 +77,15 @@ class PostgresWorkflowRepository(BaseWorkflowRepository):
             # Update fields
             db_workflow.status = workflow.status.value
             db_workflow.current_state = workflow.current_state
-            db_workflow.extraction = workflow.extraction.model_dump() if workflow.extraction else None
-            db_workflow.policy_results = workflow.policy_results.model_dump() if workflow.policy_results else None
+            db_workflow.extraction = (
+                workflow.extraction.model_dump() if workflow.extraction else None
+            )
+            db_workflow.policy_results = (
+                workflow.policy_results.model_dump() if workflow.policy_results else None
+            )
             db_workflow.approvals = [approval.model_dump() for approval in workflow.approvals]
             db_workflow.execution_log = workflow.execution_log
-            db_workflow.updated_at = datetime.now(timezone.utc)
+            db_workflow.updated_at = datetime.now(UTC)
 
             session.commit()
             session.refresh(db_workflow)
@@ -97,7 +105,9 @@ class PostgresWorkflowRepository(BaseWorkflowRepository):
             # Convert ORM model back to domain model
             return self._orm_to_domain(db_workflow)
 
-    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[WorkflowState]:
+    def list_by_tenant(
+        self, tenant_id: str, skip: int = 0, limit: int = 100
+    ) -> list[WorkflowState]:
         with Session(self.engine) as session:
             stmt = (
                 select(WorkflowStateModel)
@@ -118,7 +128,12 @@ class PostgresWorkflowRepository(BaseWorkflowRepository):
     @staticmethod
     def _orm_to_domain(db_workflow: WorkflowStateModel) -> WorkflowState:
         """Convert ORM model to domain model."""
-        from app.domain.models import ApprovalRecord, ExtractedRequest, PolicyEvaluation, WorkflowStatus
+        from app.domain.models import (
+            ApprovalRecord,
+            ExtractedRequest,
+            PolicyEvaluation,
+            WorkflowStatus,
+        )
 
         return WorkflowState(
             workflow_id=db_workflow.workflow_id,
@@ -127,9 +142,15 @@ class PostgresWorkflowRepository(BaseWorkflowRepository):
             request_text=db_workflow.request_text,
             status=WorkflowStatus(db_workflow.status),
             current_state=db_workflow.current_state,
-            extraction=ExtractedRequest(**db_workflow.extraction) if db_workflow.extraction else None,
-            policy_results=PolicyEvaluation(**db_workflow.policy_results) if db_workflow.policy_results else None,
-            approvals=[ApprovalRecord(**a) for a in db_workflow.approvals] if db_workflow.approvals else [],
+            extraction=ExtractedRequest(**db_workflow.extraction)
+            if db_workflow.extraction
+            else None,
+            policy_results=PolicyEvaluation(**db_workflow.policy_results)
+            if db_workflow.policy_results
+            else None,
+            approvals=[ApprovalRecord(**a) for a in db_workflow.approvals]
+            if db_workflow.approvals
+            else [],
             execution_log=db_workflow.execution_log or [],
             created_at=db_workflow.created_at,
             updated_at=db_workflow.updated_at,
@@ -168,7 +189,9 @@ class PostgresAuditRepository(BaseAuditRepository):
             db_records = session.scalars(stmt).all()
             return [self._orm_to_domain(r) for r in db_records]
 
-    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[AuditLogRecord]:
+    def list_by_tenant(
+        self, tenant_id: str, skip: int = 0, limit: int = 100
+    ) -> list[AuditLogRecord]:
         with Session(self.engine) as session:
             stmt = (
                 select(AuditLogRecordModel)

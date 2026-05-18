@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
@@ -9,8 +9,8 @@ from app.ai.extraction import RequestExtractionAgent
 from app.ai.policy import PolicyEngine
 from app.domain.models import ApprovalRecord, ApprovalStatus, WorkflowState, WorkflowStatus
 from app.integrations.registry import ConnectorRegistry
-from app.services.audit import AuditService
 from app.orchestration.graph import build_default_graph
+from app.services.audit import AuditService
 
 if TYPE_CHECKING:
     from app.services.queue import RedisJobQueue
@@ -35,7 +35,7 @@ class WorkflowRuntime:
         # Use a graph executor to run extraction -> policy -> approvals -> dispatch.
         graph = build_default_graph(self.extractor, self.policy_engine, self)
         workflow = graph.run(workflow)
-        workflow.updated_at = datetime.now(timezone.utc)
+        workflow.updated_at = datetime.now(UTC)
         return workflow
 
     def process_approval_response(
@@ -46,7 +46,10 @@ class WorkflowRuntime:
         actor: str,
         comment: str | None,
     ) -> WorkflowState:
-        target = next((approval for approval in workflow.approvals if approval.approval_id == approval_id), None)
+        target = next(
+            (approval for approval in workflow.approvals if approval.approval_id == approval_id),
+            None,
+        )
         if target is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -58,9 +61,11 @@ class WorkflowRuntime:
                 detail=f"Approval '{approval_id}' has already been handled.",
             )
 
-        target.status = ApprovalStatus.approved if decision == "approved" else ApprovalStatus.rejected
+        target.status = (
+            ApprovalStatus.approved if decision == "approved" else ApprovalStatus.rejected
+        )
         target.responded_by = actor
-        target.responded_at = datetime.now(timezone.utc)
+        target.responded_at = datetime.now(UTC)
         target.comment = comment
 
         self.audit_service.log(
@@ -74,7 +79,9 @@ class WorkflowRuntime:
         if target.status == ApprovalStatus.rejected:
             workflow.status = WorkflowStatus.rejected
             workflow.current_state = "rejected"
-            workflow.execution_log.append({"event": "workflow.rejected", "approval_id": approval_id})
+            workflow.execution_log.append(
+                {"event": "workflow.rejected", "approval_id": approval_id}
+            )
         elif all(approval.status == ApprovalStatus.approved for approval in workflow.approvals):
             workflow.status = WorkflowStatus.completed
             workflow.current_state = "completed"
@@ -89,13 +96,17 @@ class WorkflowRuntime:
         else:
             workflow.status = WorkflowStatus.waiting_approval
             workflow.current_state = "awaiting_additional_approvals"
-            workflow.execution_log.append({"event": "approval.recorded", "approval_id": approval_id})
+            workflow.execution_log.append(
+                {"event": "approval.recorded", "approval_id": approval_id}
+            )
 
-        workflow.updated_at = datetime.now(timezone.utc)
+        workflow.updated_at = datetime.now(UTC)
         return workflow
 
     def execute_agent(self, workflow: WorkflowState, agent_name: str, actor: str) -> WorkflowState:
-        workflow.execution_log.append({"event": "agent.executed", "agent_name": agent_name, "actor": actor})
+        workflow.execution_log.append(
+            {"event": "agent.executed", "agent_name": agent_name, "actor": actor}
+        )
         self.audit_service.log(
             workflow_id=workflow.workflow_id,
             actor=actor,
@@ -108,7 +119,7 @@ class WorkflowRuntime:
             workflow.policy_results = self.policy_engine.evaluate(workflow.extraction)
             workflow.current_state = "policy_re_evaluated"
 
-        workflow.updated_at = datetime.now(timezone.utc)
+        workflow.updated_at = datetime.now(UTC)
         return workflow
 
     def _build_approvals(self, workflow: WorkflowState) -> list[ApprovalRecord]:

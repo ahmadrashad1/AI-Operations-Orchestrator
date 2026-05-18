@@ -8,18 +8,21 @@ Notes:
 - This is a pragmatic convenience implementation; for production use, ensure
   pgvector extension is installed and the vector column is properly indexed.
 """
+
 from __future__ import annotations
 
 import json
-from typing import Any, List
+from typing import Any
 
-from sqlalchemy import text, create_engine
+from sqlalchemy import create_engine, text
 
 from app.ai.embeddings import get_embedding
 
 
 class RetrievalResult:
-    def __init__(self, id: str, score: float, text: str, metadata: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, id: str, score: float, text: str, metadata: dict[str, Any] | None = None
+    ) -> None:
         self.id = id
         self.score = score
         self.text = text
@@ -50,9 +53,15 @@ class PGVectorRetrieval:
                 )
             )
             # Create index for fast similarity search
-            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_documents_embedding ON documents USING ivfflat (embedding)"))
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_documents_embedding ON documents USING ivfflat (embedding)"
+                )
+            )
 
-    def index_document(self, doc_id: str, text: str, metadata: dict[str, Any] | None = None) -> None:
+    def index_document(
+        self, doc_id: str, text: str, metadata: dict[str, Any] | None = None
+    ) -> None:
         emb = get_embedding(text)
         emb_list = "{" + ",".join(str(x) for x in emb) + "}"
         with self.engine.begin() as conn:
@@ -67,10 +76,15 @@ class PGVectorRetrieval:
                         embedding = EXCLUDED.embedding
                     """
                 ),
-                {"id": doc_id, "text": text, "metadata": json.dumps(metadata or {}), "embedding": emb_list},
+                {
+                    "id": doc_id,
+                    "text": text,
+                    "metadata": json.dumps(metadata or {}),
+                    "embedding": emb_list,
+                },
             )
 
-    def search(self, query: str, top_k: int = 5) -> List[RetrievalResult]:
+    def search(self, query: str, top_k: int = 5) -> list[RetrievalResult]:
         emb = get_embedding(query)
         emb_list = "{" + ",".join(str(x) for x in emb) + "}"
         with self.engine.begin() as conn:
@@ -78,7 +92,7 @@ class PGVectorRetrieval:
                 "SELECT id, text, metadata, embedding, (embedding <-> :q) AS distance FROM documents ORDER BY embedding <-> :q LIMIT :k"
             )
             rows = conn.execute(stmt, {"q": emb_list, "k": top_k}).fetchall()
-            results: List[RetrievalResult] = []
+            results: list[RetrievalResult] = []
             for r in rows:
                 meta = r[2]
                 score = float(r[4])

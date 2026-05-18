@@ -1,12 +1,13 @@
 """SQLAlchemy ORM models for persistent storage."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, Column, DateTime, Float, Index, String, Text, create_engine
+from sqlalchemy import Column, DateTime, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSON as PGJSON
-from sqlalchemy.orm import declarative_base, Session
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
@@ -26,8 +27,10 @@ class WorkflowStateModel(Base):
     policy_results = Column(PGJSON, nullable=True)  # PolicyEvaluation as JSON
     approvals = Column(PGJSON, nullable=True)  # List[ApprovalRecord] as JSON
     execution_log = Column(PGJSON, nullable=True)  # List[Dict] as JSON
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC), index=True
+    )
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
 
     __table_args__ = (
         Index("idx_tenant_created", "tenant_id", "created_at"),
@@ -63,7 +66,9 @@ class AuditLogRecordModel(Base):
     actor = Column(String(100), nullable=False)
     action = Column(String(100), nullable=False)
     event_metadata = Column("metadata", PGJSON, nullable=True)  # Dict[str, Any] as JSON
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC), index=True
+    )
 
     __table_args__ = (
         Index("idx_workflow_created", "workflow_id", "created_at"),
@@ -94,8 +99,8 @@ class UserModel(Base):
     hashed_password = Column(String(255), nullable=True)
     roles = Column(PGJSON, nullable=False, default=[])  # List[str]
     is_active = Column(String(50), nullable=False, default="active", index=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
 
     __table_args__ = (Index("idx_tenant_email", "tenant_id", "email"),)
 
@@ -119,7 +124,9 @@ class TokenBlacklistModel(Base):
 
     jti = Column(String(500), primary_key=True, nullable=False)
     user_id = Column(String(100), nullable=False, index=True)
-    blacklisted_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    blacklisted_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_expires_at", "expires_at"),)

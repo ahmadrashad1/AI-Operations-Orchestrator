@@ -25,4 +25,3 @@ class AuditService:
 
     def list_for_workflow(self, workflow_id: str) -> list[AuditLogRecord]:
         return self.repository.list_by_workflow(workflow_id=workflow_id)
-

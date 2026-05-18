@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
@@ -9,10 +9,10 @@ from pydantic import BaseModel, Field
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-class WorkflowStatus(str, Enum):
+class WorkflowStatus(StrEnum):
     pending = "pending"
     waiting_approval = "waiting_approval"
     approved = "approved"
@@ -20,7 +20,7 @@ class WorkflowStatus(str, Enum):
     completed = "completed"
 
 
-class ApprovalStatus(str, Enum):
+class ApprovalStatus(StrEnum):
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
@@ -77,4 +77,3 @@ class WorkflowState(BaseModel):
     execution_log: list[dict[str, Any]] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
-

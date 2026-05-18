@@ -27,4 +27,3 @@ class BaseConnector(ABC):
     @abstractmethod
     def execute(self, payload: dict[str, Any], idempotency_key: str) -> ConnectorDispatch:
         raise NotImplementedError
-

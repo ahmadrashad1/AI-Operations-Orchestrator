@@ -1,9 +1,8 @@
-from app.domain.models import WorkflowState
 from app.ai.extraction import RequestExtractionAgent
 from app.ai.policy import PolicyEngine
-from app.services.audit import AuditService
-from app.services.workflows import WorkflowService
+from app.domain.models import WorkflowState
 from app.orchestration.runtime import WorkflowRuntime
+from app.services.audit import AuditService
 
 
 class MockConnector:
@@ -20,7 +19,11 @@ class MockConnector:
 
     def execute(self, payload, idempotency_key):
         self.dispatched.append({"payload": payload, "idempotency_key": idempotency_key})
-        return type("D", (), {"model_dump": lambda self: {"status": "queued", "idempotency_key": idempotency_key}})()
+        return type(
+            "D",
+            (),
+            {"model_dump": lambda self: {"status": "queued", "idempotency_key": idempotency_key}},
+        )()
 
 
 class MockRegistry:
@@ -33,7 +36,9 @@ class MockRegistry:
 
 def test_graph_execution_and_dispatch():
     extractor = RequestExtractionAgent()
-    settings = type("S", (), {"manager_approval_threshold": 3000.0, "finance_approval_threshold": 5000.0})()
+    settings = type(
+        "S", (), {"manager_approval_threshold": 3000.0, "finance_approval_threshold": 5000.0}
+    )()
     policy = PolicyEngine(settings=settings)
     audit = AuditService(repository=type("R", (), {"append": lambda *_: None})())
 
@@ -46,7 +51,9 @@ def test_graph_execution_and_dispatch():
         job_queue=None,
     )
 
-    wf = WorkflowState(tenant_id="t1", submitted_by="u1", request_text="Need 3 laptops for engineering")
+    wf = WorkflowState(
+        tenant_id="t1", submitted_by="u1", request_text="Need 3 laptops for engineering"
+    )
     wf = runtime.bootstrap(wf)
 
     # After bootstrap, approvals should be built (Manager/Finance depending on cost)
