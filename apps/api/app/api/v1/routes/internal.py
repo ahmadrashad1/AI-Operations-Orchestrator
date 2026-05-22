@@ -1,9 +1,15 @@
 from fastapi import APIRouter, Depends
 
-from app.api.dependencies import get_audit_service, get_workflow_service, require_roles
+from app.api.dependencies import (
+    get_audit_service,
+    get_metrics_collector,
+    get_workflow_service,
+    require_roles,
+)
 from app.core.security import Principal
 from app.domain.schemas import EventPublishRequest, InternalAgentExecuteRequest, WorkflowEnvelope
 from app.services.audit import AuditService
+from app.observability.telemetry import MetricsCollector, TelemetrySnapshot
 from app.services.workflows import WorkflowService
 
 router = APIRouter()
@@ -33,3 +39,12 @@ def publish_event(
         tenant_id=principal.tenant_id,
     )
     return {"status": "accepted"}
+
+
+@router.get("/metrics", response_model=TelemetrySnapshot)
+def read_metrics(
+    principal: Principal = Depends(require_roles("Admin", "Manager", "Auditor")),
+    metrics_collector: MetricsCollector = Depends(get_metrics_collector),
+) -> TelemetrySnapshot:
+    _ = principal
+    return metrics_collector.snapshot()

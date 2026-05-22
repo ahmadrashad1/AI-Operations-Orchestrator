@@ -42,12 +42,14 @@ Persistence abstractions and adapters.
 
 Current implementation:
 
-- in-memory repositories for fast iteration
+- PostgreSQL workflow and audit repositories
+- in-memory repositories retained for development/test mode
+- Redis queue and job coordination
 
 Planned implementation:
 
-- PostgreSQL workflow and audit repositories
-- Redis queues and locks
+- tenant-scoped query helpers and repository guardrails
+- operational reporting views and retention policies
 
 ### 5. `apps/api/app/orchestration`
 
@@ -77,9 +79,18 @@ Current implementation:
 
 - base connector contract
 - connector registry
-- Slack approval payload dispatch stub
+- Slack approval payload dispatch
+- Gmail and Jira stubs ready for real vendor integrations
 
-### 8. `apps/web`
+### 8. `apps/api/app/observability`
+
+Operational telemetry for:
+
+- request counting
+- request latency snapshots
+- recent-request inspection via internal API
+
+### 9. `apps/web`
 
 Next.js operations console for:
 
@@ -88,7 +99,7 @@ Next.js operations console for:
 - approval UI
 - operator navigation
 
-### 9. `docker-compose.yml`
+### 10. `docker-compose.yml`
 
 Local stack with:
 
@@ -96,6 +107,18 @@ Local stack with:
 - Redis
 - FastAPI API
 - Next.js web
+
+## Remaining Production SaaS Gaps
+
+The core workflow engine is in place, but the platform still needs the following for a production-grade, scalable SaaS release:
+
+- request tracing, request metrics, and operational dashboards
+- real Slack, Gmail, and Jira connectors with retries and failure handling
+- tenant-safe reporting endpoints and stronger row-level isolation guarantees
+- web console workflows for approvals, audit review, and document search
+- usage limits, quota enforcement, and billing hooks
+- background job dead-letter inspection and replay tooling
+- customer-facing admin settings for tenants, users, roles, and connector configuration
 
 ## Build Strategy
 

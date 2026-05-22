@@ -13,6 +13,7 @@ from app.db.repositories import InMemoryAuditRepository, InMemoryWorkflowReposit
 from app.integrations.registry import ConnectorRegistry
 from app.integrations.slack import SlackApprovalConnector
 from app.orchestration.runtime import WorkflowRuntime
+from app.observability.telemetry import MetricsCollector
 from app.services.documents import DocumentIngestionService
 from app.services.approvals import ApprovalService
 from app.services.audit import AuditService
@@ -45,6 +46,7 @@ class ServiceContainer:
             self.job_queue = None
 
         # Initialize services
+        self.metrics_collector = MetricsCollector()
         audit_service = AuditService(repository=self.audit_repository)
         connector_registry = ConnectorRegistry(
             connectors=[SlackApprovalConnector(webhook_url=settings.slack_webhook_url)]
@@ -110,6 +112,7 @@ class ServiceContainer:
         """Clear all state (for testing)."""
         self.workflow_repository.clear()
         self.audit_repository.clear()
+        self.metrics_collector.clear()
         if self.job_queue:
             self.job_queue.clear_queue()
 
