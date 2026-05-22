@@ -54,6 +54,7 @@ services:
       - redis
 
   api-test:
+    image: ai-operations-orchestrator-api-test:ci
     build:
       context: ./apps/api
       target: test

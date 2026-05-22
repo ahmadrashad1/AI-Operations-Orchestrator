@@ -108,9 +108,17 @@ jobs:
             docker compose exec -T postgres pg_isready -U orchestrator -d orchestrator && break || sleep 1
           done
 
-      - name: Build api-test image
-        run: docker compose build --no-cache api-test
+      - name: Build api-test image with cache
+        uses: docker/build-push-action@v6
+        with:
+          context: ./apps/api
+          file: ./apps/api/Dockerfile
+          target: test
+          load: true
+          tags: ai-operations-orchestrator-api-test:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Run tests inside api-test image
-        run: docker compose run --rm api-test
+        run: docker compose run --rm --no-deps api-test
 
