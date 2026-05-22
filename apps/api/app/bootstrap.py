@@ -17,6 +17,7 @@ from app.observability.telemetry import MetricsCollector
 from app.services.documents import DocumentIngestionService
 from app.services.approvals import ApprovalService
 from app.services.audit import AuditService
+from app.services.reporting import ReportingService
 from app.services.queue import RedisJobQueue
 from app.services.workflows import WorkflowService
 
@@ -80,6 +81,10 @@ class ServiceContainer:
             runtime=runtime,
         )
         self.audit_service = audit_service
+        self.reporting_service = ReportingService(
+            workflow_repository=self.workflow_repository,
+            audit_repository=self.audit_repository,
+        )
 
     def _init_postgres(self, settings) -> None:
         """Initialize PostgreSQL storage."""

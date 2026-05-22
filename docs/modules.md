@@ -35,6 +35,7 @@ Core product entities and request/response schemas:
 - extracted requests
 - policy results
 - audit records
+- tenant reporting summaries
 
 ### 4. `apps/api/app/db`
 
@@ -82,7 +83,16 @@ Current implementation:
 - Slack approval payload dispatch
 - Gmail and Jira stubs ready for real vendor integrations
 
-### 8. `apps/api/app/observability`
+### 8. `apps/api/app/services/reporting`
+
+Tenant-scoped operational reporting for:
+
+- workflow counts
+- status breakdowns
+- pending approvals
+- recent audit activity
+
+### 9. `apps/api/app/observability`
 
 Operational telemetry for:
 
@@ -90,7 +100,7 @@ Operational telemetry for:
 - request latency snapshots
 - recent-request inspection via internal API
 
-### 9. `apps/web`
+### 10. `apps/web`
 
 Next.js operations console for:
 
@@ -99,7 +109,7 @@ Next.js operations console for:
 - approval UI
 - operator navigation
 
-### 10. `docker-compose.yml`
+### 11. `docker-compose.yml`
 
 Local stack with:
 
@@ -114,7 +124,7 @@ The core workflow engine is in place, but the platform still needs the following
 
 - request tracing, request metrics, and operational dashboards
 - real Slack, Gmail, and Jira connectors with retries and failure handling
-- tenant-safe reporting endpoints and stronger row-level isolation guarantees
+- stronger row-level isolation guarantees and database-enforced tenant guards
 - web console workflows for approvals, audit review, and document search
 - usage limits, quota enforcement, and billing hooks
 - background job dead-letter inspection and replay tooling

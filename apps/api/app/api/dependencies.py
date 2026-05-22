@@ -6,6 +6,7 @@ from app.bootstrap import get_container
 from app.core.security import Principal, get_current_principal
 from app.db.postgres import PostgresUserRepository
 from app.observability.telemetry import MetricsCollector
+from app.services.reporting import ReportingService
 from app.services.documents import DocumentIngestionService
 
 
@@ -19,6 +20,10 @@ def get_approval_service():
 
 def get_audit_service():
     return get_container().audit_service
+
+
+def get_reporting_service() -> ReportingService:
+    return get_container().reporting_service
 
 
 def get_metrics_collector() -> MetricsCollector:
