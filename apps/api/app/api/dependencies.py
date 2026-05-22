@@ -5,11 +5,12 @@ from fastapi import Depends, HTTPException, status
 from app.bootstrap import get_container
 from app.core.security import Principal, get_current_principal
 from app.db.repositories import BaseUserRepository
-from app.observability.telemetry import MetricsCollector
-from app.services.reporting import ReportingService
-from app.services.documents import DocumentIngestionService
-from app.services.users import UserService
 from app.integrations.registry import ConnectorRegistry
+from app.observability.telemetry import MetricsCollector
+from app.services.documents import DocumentIngestionService
+from app.services.reporting import ReportingService
+from app.services.tenants import TenantService
+from app.services.users import UserService
 
 
 def get_workflow_service():
@@ -71,6 +72,20 @@ def get_connector_registry() -> ConnectorRegistry:
             detail="Connector registry is unavailable.",
         )
     return reg
+
+
+def get_tenant_service() -> TenantService:
+    svc = getattr(get_container(), "tenant_service", None)
+    if svc is None:
+        repo = getattr(get_container(), "tenant_repository", None)
+        if repo is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Tenant store is unavailable.",
+            )
+        svc = TenantService(repo)
+        setattr(get_container(), "tenant_service", svc)
+    return svc
 
 
 def require_roles(*allowed_roles: str) -> Callable[[Principal], Principal]:

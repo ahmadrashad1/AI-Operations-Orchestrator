@@ -14,7 +14,13 @@ from app.ai.embeddings import get_embedding
 
 
 class RetrievalResult:
-    def __init__(self, id: str, score: float, text: str, metadata: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        id: str,
+        score: float,
+        text: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
         self.id = id
         self.score = score
         self.text = text
@@ -29,7 +35,12 @@ class PGVectorRetrieval:
         self.db_url = db_url or settings.database_url
         self.engine = create_engine(self.db_url)
 
-    def index_document(self, doc_id: str, content: str, metadata: dict[str, Any] | None = None) -> None:
+    def index_document(
+        self,
+        doc_id: str,
+        content: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
         embedding = self._embedding_literal(get_embedding(content))
         with self.engine.begin() as conn:
             conn.execute(
@@ -68,7 +79,14 @@ class PGVectorRetrieval:
                 metadata = r[2]
                 if isinstance(metadata, str):
                     metadata = json.loads(metadata)
-                results.append(RetrievalResult(id=r[0], score=float(r[3]), text=r[1], metadata=metadata))
+                results.append(
+                    RetrievalResult(
+                        id=r[0],
+                        score=float(r[3]),
+                        text=r[1],
+                        metadata=metadata,
+                    )
+                )
             return results
 
     @staticmethod

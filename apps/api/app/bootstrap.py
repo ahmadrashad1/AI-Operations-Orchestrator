@@ -11,6 +11,7 @@ from app.db.migrations import run_migrations
 from app.db.postgres import PostgresAuditRepository, PostgresWorkflowRepository
 from app.db.repositories import InMemoryAuditRepository, InMemoryWorkflowRepository
 from app.db.repositories import InMemoryUserRepository
+from app.db.repositories import InMemoryTenantRepository
 from app.integrations.registry import ConnectorRegistry
 from app.integrations.slack import SlackApprovalConnector
 from app.orchestration.runtime import WorkflowRuntime
@@ -22,6 +23,7 @@ from app.services.reporting import ReportingService
 from app.services.queue import RedisJobQueue
 from app.services.workflows import WorkflowService
 from app.services.users import UserService
+from app.services.tenants import TenantService
 
 
 class ServiceContainer:
@@ -87,6 +89,10 @@ class ServiceContainer:
             workflow_repository=self.workflow_repository,
             audit_repository=self.audit_repository,
         )
+        # Ensure tenant service exists (in-memory for dev)
+        if not getattr(self, "tenant_repository", None):
+            self.tenant_repository = InMemoryTenantRepository()
+            self.tenant_service = TenantService(self.tenant_repository)
 
     def _init_postgres(self, settings) -> None:
         """Initialize PostgreSQL storage."""

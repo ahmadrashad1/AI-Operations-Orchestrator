@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 
 from app.api.v1.routes.approvals import router as approvals_router
+from app.api.v1.routes.admin import router as admin_router
+from app.api.v1.routes.documents import router as documents_router
 from app.api.v1.routes.health import router as health_router
 from app.api.v1.routes.internal import router as internal_router
-from app.api.v1.routes.admin import router as admin_router
 from app.api.v1.routes.workflows import router as workflows_router
-from app.api.v1.routes.documents import router as documents_router
 
 
 api_router = APIRouter()

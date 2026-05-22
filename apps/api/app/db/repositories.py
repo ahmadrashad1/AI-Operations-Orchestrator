@@ -27,7 +27,12 @@ class BaseWorkflowRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[WorkflowState]:
+    def list_by_tenant(
+        self,
+        tenant_id: str,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> list[WorkflowState]:
         """List workflows for a tenant with pagination."""
         raise NotImplementedError
 
@@ -51,7 +56,12 @@ class BaseAuditRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[AuditLogRecord]:
+    def list_by_tenant(
+        self,
+        tenant_id: str,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> list[AuditLogRecord]:
         """List all audit records for a tenant with pagination."""
         raise NotImplementedError
 

@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: ./docker/postgres-pgvector
+    image: ai-operations-orchestrator-postgres:pgvector
     environment:
       POSTGRES_DB: orchestrator
       POSTGRES_USER: orchestrator
