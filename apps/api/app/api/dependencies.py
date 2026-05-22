@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status
 from app.bootstrap import get_container
 from app.core.security import Principal, get_current_principal
 from app.db.postgres import PostgresUserRepository
+from app.services.documents import DocumentIngestionService
 
 
 def get_workflow_service():
@@ -17,6 +18,16 @@ def get_approval_service():
 
 def get_audit_service():
     return get_container().audit_service
+
+
+def get_document_service() -> DocumentIngestionService:
+    service = getattr(get_container(), "document_service", None)
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document ingestion store is unavailable (PostgreSQL required).",
+        )
+    return service
 
 
 def get_user_repository() -> PostgresUserRepository:

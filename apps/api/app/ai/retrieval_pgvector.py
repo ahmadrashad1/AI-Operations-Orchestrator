@@ -1,28 +1,20 @@
-"""PGVector-backed retrieval implementation (minimal).
+"""PGVector-backed retrieval implementation.
 
-This implementation expects Postgres with the `vector` extension installed.
-It creates a `documents` table (if missing) and provides `index_document`
-and `search` operations using the `<->` operator for nearest neighbor search.
-
-Notes:
-- This is a pragmatic convenience implementation; for production use, ensure
-  pgvector extension is installed and the vector column is properly indexed.
+The database schema is owned by Alembic migrations. This runtime layer only
+handles embedding generation, inserts, and nearest-neighbor search.
 """
-
 from __future__ import annotations
 
 import json
 from typing import Any
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text as sa_text
 
 from app.ai.embeddings import get_embedding
 
 
 class RetrievalResult:
-    def __init__(
-        self, id: str, score: float, text: str, metadata: dict[str, Any] | None = None
-    ) -> None:
+    def __init__(self, id: str, score: float, text: str, metadata: dict[str, Any] | None = None) -> None:
         self.id = id
         self.score = score
         self.text = text
@@ -36,65 +28,49 @@ class PGVectorRetrieval:
         settings = get_settings()
         self.db_url = db_url or settings.database_url
         self.engine = create_engine(self.db_url)
-        # Ensure table exists (idempotent)
-        with self.engine.begin() as conn:
-            # Create extension if not exists and documents table
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            conn.execute(
-                text(
-                    """
-                    CREATE TABLE IF NOT EXISTS documents (
-                        id TEXT PRIMARY KEY,
-                        text TEXT NOT NULL,
-                        metadata JSONB,
-                        embedding vector(1536)
-                    )
-                    """
-                )
-            )
-            # Create index for fast similarity search
-            conn.execute(
-                text(
-                    "CREATE INDEX IF NOT EXISTS idx_documents_embedding ON documents USING ivfflat (embedding)"
-                )
-            )
 
-    def index_document(
-        self, doc_id: str, text: str, metadata: dict[str, Any] | None = None
-    ) -> None:
-        emb = get_embedding(text)
-        emb_list = "{" + ",".join(str(x) for x in emb) + "}"
+    def index_document(self, doc_id: str, content: str, metadata: dict[str, Any] | None = None) -> None:
+        embedding = self._embedding_literal(get_embedding(content))
         with self.engine.begin() as conn:
             conn.execute(
-                text(
+                sa_text(
                     """
                     INSERT INTO documents (id, text, metadata, embedding)
-                    VALUES (:id, :text, :metadata, :embedding)
-                    ON CONFLICT (id) DO UPDATE SET
+                    VALUES (:id, :text, :metadata, CAST(:embedding AS vector))
+                    ON CONFLICT (id)
+                    DO UPDATE SET
                         text = EXCLUDED.text,
                         metadata = EXCLUDED.metadata,
                         embedding = EXCLUDED.embedding
                     """
                 ),
-                {
-                    "id": doc_id,
-                    "text": text,
-                    "metadata": json.dumps(metadata or {}),
-                    "embedding": emb_list,
-                },
+                {"id": doc_id, "text": content, "metadata": metadata or {}, "embedding": embedding},
             )
 
     def search(self, query: str, top_k: int = 5) -> list[RetrievalResult]:
-        emb = get_embedding(query)
-        emb_list = "{" + ",".join(str(x) for x in emb) + "}"
+        embedding = self._embedding_literal(get_embedding(query))
         with self.engine.begin() as conn:
-            stmt = text(
-                "SELECT id, text, metadata, embedding, (embedding <-> :q) AS distance FROM documents ORDER BY embedding <-> :q LIMIT :k"
+            stmt = sa_text(
+                """
+                SELECT
+                    id,
+                    text,
+                    metadata,
+                    (embedding <-> CAST(:embedding AS vector)) AS distance
+                FROM documents
+                ORDER BY embedding <-> CAST(:embedding AS vector)
+                LIMIT :limit
+                """
             )
-            rows = conn.execute(stmt, {"q": emb_list, "k": top_k}).fetchall()
+            rows = conn.execute(stmt, {"embedding": embedding, "limit": top_k}).fetchall()
             results: list[RetrievalResult] = []
             for r in rows:
-                meta = r[2]
-                score = float(r[4])
-                results.append(RetrievalResult(id=r[0], score=score, text=r[1], metadata=meta))
+                metadata = r[2]
+                if isinstance(metadata, str):
+                    metadata = json.loads(metadata)
+                results.append(RetrievalResult(id=r[0], score=float(r[3]), text=r[1], metadata=metadata))
             return results
+
+    @staticmethod
+    def _embedding_literal(values: list[float]) -> str:
+        return "[" + ",".join(str(value) for value in values) + "]"

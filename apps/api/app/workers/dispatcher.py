@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings, get_settings
+from app.services.documents import DocumentIngestionService
 from app.integrations.slack import slack_incoming_webhook_body
 from app.services.queue import Job, RedisJobQueue
 
@@ -43,6 +44,13 @@ def process_connector_job(job: Job, settings: Settings) -> None:
     raise ValueError(f"Unsupported connector {connector!r}")
 
 
+def process_document_ingest_job(job: Job, document_service: DocumentIngestionService) -> None:
+    if job.job_type != "document_ingest":
+        raise ValueError(f"Unsupported job_type {job.job_type!r}")
+
+    document_service.ingest_job(job)
+
+
 def run_loop(queue: RedisJobQueue | None, settings: Settings) -> None:
     if queue is None:
         logger.error("Redis job queue unavailable; exiting dispatcher.")
@@ -56,7 +64,19 @@ def run_loop(queue: RedisJobQueue | None, settings: Settings) -> None:
             continue
 
         try:
-            process_connector_job(job, settings)
+            if job.job_type == "connector_dispatch":
+                process_connector_job(job, settings)
+            elif job.job_type == "document_ingest":
+                from app.bootstrap import get_container
+
+                container = get_container()
+                document_service = getattr(container, "document_service", None)
+                if document_service is None:
+                    raise RuntimeError("Document service unavailable")
+                process_document_ingest_job(job, document_service)
+            else:
+                raise ValueError(f"Unsupported job_type {job.job_type!r}")
+
             queue.mark_completed(job.job_id)
             logger.info("Job %s completed (%s)", job.job_id, job.job_type)
         except Exception as exc:

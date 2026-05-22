@@ -1,19 +1,19 @@
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.pool import QueuePool
 
 from app.ai.llm_extraction import LLMExtractionAgent
 from app.ai.policy import PolicyEngine
+from app.ai.retrieval_pgvector import PGVectorRetrieval
 from app.core.config import get_settings
 from app.db.migrations import run_migrations
-from app.db.postgres import (
-    PostgresAuditRepository,
-    PostgresUserRepository,
-    PostgresWorkflowRepository,
-)
+from app.db.postgres import PostgresAuditRepository, PostgresWorkflowRepository
 from app.db.repositories import InMemoryAuditRepository, InMemoryWorkflowRepository
 from app.integrations.registry import ConnectorRegistry
 from app.integrations.slack import SlackApprovalConnector
 from app.orchestration.runtime import WorkflowRuntime
+from app.services.documents import DocumentIngestionService
 from app.services.approvals import ApprovalService
 from app.services.audit import AuditService
 from app.services.queue import RedisJobQueue
@@ -21,8 +21,6 @@ from app.services.workflows import WorkflowService
 
 
 class ServiceContainer:
-    user_repository: PostgresUserRepository | None
-
     def __init__(self, use_postgres: bool | None = None) -> None:
         settings = get_settings()
 
@@ -33,10 +31,8 @@ class ServiceContainer:
         # Initialize storage
         if use_postgres:
             self._init_postgres(settings)
-            self.user_repository = PostgresUserRepository(self.engine)
         else:
             self._init_in_memory(settings)
-            self.user_repository = None
 
         # Initialize job queue (always Redis, falls back to mock if unavailable)
         try:
@@ -60,6 +56,16 @@ class ServiceContainer:
             connector_registry=connector_registry,
             job_queue=self.job_queue,
         )
+
+        self.document_service = None
+        if use_postgres:
+            try:
+                self.document_service = DocumentIngestionService(
+                    retriever=PGVectorRetrieval(db_url=settings.database_url),
+                    queue=self.job_queue,
+                )
+            except Exception as exc:
+                print(f"Warning: Failed to initialize document ingestion service: {exc}")
 
         self.workflow_service = WorkflowService(
             repository=self.workflow_repository,
