@@ -66,5 +66,6 @@ tests/test_auth_jwt_roundtrip.py
 tests/test_dispatcher_slack.py
 tests/test_documents_ingestion.py
 tests/test_graph_and_dispatch.py
+tests/test_langgraph_flow.py
 tests/test_llm_extraction.py
 tests/test_workflows.py

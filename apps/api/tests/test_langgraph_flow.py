@@ -3,17 +3,18 @@ from __future__ import annotations
 from app.ai.extraction import RequestExtractionAgent
 from app.ai.policy import PolicyEngine
 from app.domain.models import WorkflowState
-from app.orchestration import langgraph_adapter
 from app.orchestration.langgraph_adapter import run_workflow_graph
 from app.orchestration.runtime import WorkflowRuntime
 from app.services.audit import AuditService
 
 
-class MockConnector:
+class FlakyConnector:
     name = "slack"
 
-    def __init__(self) -> None:
+    def __init__(self, failures_before_success: int) -> None:
         self.dispatched: list[dict[str, object]] = []
+        self.failures_before_success = failures_before_success
+        self.attempts = 0
 
     def authenticate(self) -> bool:
         return True
@@ -22,6 +23,10 @@ class MockConnector:
         return True
 
     def execute(self, payload, idempotency_key):
+        self.attempts += 1
+        if self.attempts <= self.failures_before_success:
+            raise RuntimeError("temporary slack outage")
+
         self.dispatched.append({"payload": payload, "idempotency_key": idempotency_key})
         return type("Dispatch", (), {"model_dump": lambda self: {"status": "queued"}})()
 
@@ -55,22 +60,12 @@ class MemoryAuditRepository:
         self.records.clear()
 
 
-class FakeLangGraphModule:
-    class Graph:
-        def __init__(self) -> None:
-            self.nodes = []
-
-
-def test_langgraph_adapter_runs_graph_flow(monkeypatch) -> None:
-    monkeypatch.setattr(langgraph_adapter, "langgraph", FakeLangGraphModule())
-
+def _build_runtime(connector) -> WorkflowRuntime:
     extractor = RequestExtractionAgent()
     settings = type("S", (), {"manager_approval_threshold": 3000.0, "finance_approval_threshold": 5000.0})()
     policy = PolicyEngine(settings=settings)
     audit = AuditService(repository=MemoryAuditRepository())
-    connector = MockConnector()
-
-    runtime = WorkflowRuntime(
+    return WorkflowRuntime(
         extractor=extractor,
         policy_engine=policy,
         audit_service=audit,
@@ -78,13 +73,37 @@ def test_langgraph_adapter_runs_graph_flow(monkeypatch) -> None:
         job_queue=None,
     )
 
-    workflow = WorkflowState(tenant_id="tenant-a", submitted_by="user-1", request_text="Need 5 laptops for engineering")
+
+def test_langgraph_adapter_retries_then_dispatches() -> None:
+    connector = FlakyConnector(failures_before_success=1)
+    runtime = _build_runtime(connector)
+    extractor = runtime.extractor
+    policy = runtime.policy_engine
+    workflow = WorkflowState(tenant_id="tenant-a", submitted_by="user-1", request_text="Need 9 monitors for engineering")
 
     result = run_workflow_graph(extractor, policy, runtime, workflow)
 
     assert result.status == result.status.__class__.waiting_approval
-    assert result.current_state == "awaiting_approval"
-    assert [approval.role for approval in result.approvals] == ["Manager", "Finance"]
-    assert len(connector.dispatched) == 2
+    assert result.current_state == "dispatch_completed"
+    assert [approval.role for approval in result.approvals] == ["Manager"]
+    assert connector.attempts == 2
+    assert len(connector.dispatched) == 1
     assert any(entry["event"] == "request.extracted" for entry in result.execution_log)
     assert any(entry["event"] == "policy.evaluated" for entry in result.execution_log)
+    assert any(entry["event"] == "approval.dispatch_retry_scheduled" for entry in result.execution_log)
+
+
+def test_langgraph_adapter_terminal_error_branch() -> None:
+    connector = FlakyConnector(failures_before_success=10)
+    runtime = _build_runtime(connector)
+    extractor = runtime.extractor
+    policy = runtime.policy_engine
+    workflow = WorkflowState(tenant_id="tenant-a", submitted_by="user-1", request_text="Need 9 monitors for engineering")
+
+    result = run_workflow_graph(extractor, policy, runtime, workflow)
+
+    assert result.current_state == "dispatch_error"
+    assert connector.attempts == 3
+    assert len(connector.dispatched) == 0
+    assert result.graph_metadata["dispatch_retry_counts"]
+    assert any(entry["event"] == "approval.dispatch_failed_terminal" for entry in result.execution_log)

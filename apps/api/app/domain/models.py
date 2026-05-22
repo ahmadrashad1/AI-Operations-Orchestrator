@@ -75,5 +75,6 @@ class WorkflowState(BaseModel):
     policy_results: PolicyEvaluation | None = None
     approvals: list[ApprovalRecord] = Field(default_factory=list)
     execution_log: list[dict[str, Any]] = Field(default_factory=list)
+    graph_metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
