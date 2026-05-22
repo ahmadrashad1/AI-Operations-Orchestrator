@@ -53,6 +53,19 @@ services:
       - postgres
       - redis
 
+  api-test:
+    build:
+      context: ./apps/api
+      target: test
+    environment:
+      APP_ENVIRONMENT: development
+      APP_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
+      APP_REDIS_URL: redis://redis:6379/0
+      APP_JWT_SECRET_KEY: ${APP_JWT_SECRET_KEY:-dev-secret-change-in-production-use-long-random-string}
+    depends_on:
+      - postgres
+      - redis
+
   web:
     build:
       context: ./apps/web
