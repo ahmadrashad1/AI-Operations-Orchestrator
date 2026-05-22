@@ -30,10 +30,25 @@ jobs:
           cache: "pip"
           cache-dependency-path: apps/api/pyproject.toml
 
+      - name: Restore API wheelhouse cache
+        id: api-wheelhouse-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/api-wheelhouse
+          key: api-wheelhouse-${{ runner.os }}-${{ hashFiles('apps/api/pyproject.toml') }}
+          restore-keys: |
+            api-wheelhouse-${{ runner.os }}-
+
+      - name: Warm API wheelhouse cache
+        if: steps.api-wheelhouse-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.cache/api-wheelhouse
+          python -m pip wheel --wheel-dir ~/.cache/api-wheelhouse setuptools wheel ".[dev]"
+
       - name: Install API dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install ".[dev]" --no-index --find-links ~/.cache/api-wheelhouse
 
       - name: Verify imports compile
         run: python -m compileall app tests
