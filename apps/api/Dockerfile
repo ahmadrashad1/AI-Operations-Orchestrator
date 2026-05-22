@@ -32,7 +32,7 @@ FROM base AS test
 
 # Install development build tools and development dependencies (tests, linters, testcontainers, etc.)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential \
+    && apt-get install -y --no-install-recommends build-essential libssl-dev libffi-dev python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade pip \
