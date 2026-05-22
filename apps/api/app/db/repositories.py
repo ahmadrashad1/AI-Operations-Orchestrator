@@ -175,6 +175,30 @@ class InMemoryUserRepository(BaseUserRepository):
                 del self._items[user_id]
 
 
+class BaseTenantRepository(ABC):
+    @abstractmethod
+    def create_tenant(self, tenant: dict) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_tenants(self) -> list[dict]:
+        raise NotImplementedError
+
+
+class InMemoryTenantRepository(BaseTenantRepository):
+    def __init__(self) -> None:
+        self._items: dict[str, dict] = {}
+        self._lock = RLock()
+
+    def create_tenant(self, tenant: dict) -> dict:
+        with self._lock:
+            self._items[tenant["tenant_id"]] = tenant
+            return tenant
+
+    def list_tenants(self) -> list[dict]:
+        return list(self._items.values())
+
+
 # Legacy aliases for backwards compatibility
 WorkflowRepository = InMemoryWorkflowRepository
 AuditRepository = InMemoryAuditRepository

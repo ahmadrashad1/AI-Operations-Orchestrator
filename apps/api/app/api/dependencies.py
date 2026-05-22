@@ -9,6 +9,7 @@ from app.observability.telemetry import MetricsCollector
 from app.services.reporting import ReportingService
 from app.services.documents import DocumentIngestionService
 from app.services.users import UserService
+from app.integrations.registry import ConnectorRegistry
 
 
 def get_workflow_service():
@@ -60,6 +61,16 @@ def get_user_service() -> UserService:
         # cache for future calls
         setattr(get_container(), "user_service", svc)
     return svc
+
+
+def get_connector_registry() -> ConnectorRegistry:
+    reg = getattr(get_container(), "connector_registry", None)
+    if reg is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Connector registry is unavailable.",
+        )
+    return reg
 
 
 def require_roles(*allowed_roles: str) -> Callable[[Principal], Principal]:

@@ -151,6 +151,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Set up Python on runner for integration tests
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install API dependencies (for integration tests)
+        run: |
+          python -m pip install --upgrade pip
+          pip install "./apps/api[dev]"
+
+      - name: Run Postgres-backed integration tests
+        env:
+          APP_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@localhost:5432/orchestrator
+        run: |
+          pytest -q apps/api/tests/test_postgres_users.py
+
       - name: Run tests inside api-test image
         run: docker compose run --rm --no-deps api-test
 
