@@ -56,8 +56,28 @@ jobs:
       - name: Lint API
         run: ruff check .
 
-      - name: Run API tests
-        run: pytest -q
+      - name: Run API tests (capture exit code)
+        run: |
+          set +e
+          pytest -q --junitxml=pytest-results.xml
+          echo $? > pytest-rc.txt
+          set -e
+
+      - name: Upload API pytest results
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-pytest-results-${{ github.run_id }}
+          path: |
+            pytest-results.xml
+            pytest-rc.txt
+
+      - name: Fail if tests failed
+        run: |
+          RC=$(cat pytest-rc.txt || echo 0)
+          if [ "$RC" != "0" ]; then
+            echo "Pytest failed with code $RC"
+            exit $RC
+          fi
 
   web-quality:
     name: Web quality gates
