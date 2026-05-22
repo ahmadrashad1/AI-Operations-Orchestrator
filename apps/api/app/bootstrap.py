@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.db.migrations import run_migrations
 from app.db.postgres import PostgresAuditRepository, PostgresWorkflowRepository
 from app.db.repositories import InMemoryAuditRepository, InMemoryWorkflowRepository
+from app.db.repositories import InMemoryUserRepository
 from app.integrations.registry import ConnectorRegistry
 from app.integrations.slack import SlackApprovalConnector
 from app.orchestration.runtime import WorkflowRuntime
@@ -20,6 +21,7 @@ from app.services.audit import AuditService
 from app.services.reporting import ReportingService
 from app.services.queue import RedisJobQueue
 from app.services.workflows import WorkflowService
+from app.services.users import UserService
 
 
 class ServiceContainer:
@@ -106,12 +108,22 @@ class ServiceContainer:
         self.engine = engine
         self.workflow_repository = PostgresWorkflowRepository(engine)
         self.audit_repository = PostgresAuditRepository(engine)
+        # Postgres-backed user repository if available
+        try:
+            from app.db.postgres import PostgresUserRepository
+
+            self.user_repository = PostgresUserRepository(engine)
+        except Exception:
+            self.user_repository = None
 
     def _init_in_memory(self, settings) -> None:
         """Initialize in-memory storage (for development/testing)."""
         self.engine = None
         self.workflow_repository = InMemoryWorkflowRepository()
         self.audit_repository = InMemoryAuditRepository()
+        # lightweight in-memory user repository for dev/test
+        self.user_repository = InMemoryUserRepository()
+        self.user_service = UserService(self.user_repository)
 
     def reset_state(self) -> None:
         """Clear all state (for testing)."""

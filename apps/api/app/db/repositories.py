@@ -27,9 +27,7 @@ class BaseWorkflowRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_by_tenant(
-        self, tenant_id: str, skip: int = 0, limit: int = 100
-    ) -> list[WorkflowState]:
+    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[WorkflowState]:
         """List workflows for a tenant with pagination."""
         raise NotImplementedError
 
@@ -53,9 +51,7 @@ class BaseAuditRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_by_tenant(
-        self, tenant_id: str, skip: int = 0, limit: int = 100
-    ) -> list[AuditLogRecord]:
+    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[AuditLogRecord]:
         """List all audit records for a tenant with pagination."""
         raise NotImplementedError
 
@@ -91,9 +87,7 @@ class InMemoryWorkflowRepository(BaseWorkflowRepository):
             )
         return workflow
 
-    def list_by_tenant(
-        self, tenant_id: str, skip: int = 0, limit: int = 100
-    ) -> list[WorkflowState]:
+    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[WorkflowState]:
         workflows = [w for w in self._items.values() if w.tenant_id == tenant_id]
         return workflows[skip : skip + limit]
 
@@ -117,15 +111,68 @@ class InMemoryAuditRepository(BaseAuditRepository):
     def list_by_workflow(self, workflow_id: str) -> list[AuditLogRecord]:
         return [record for record in self._items if record.workflow_id == workflow_id]
 
-    def list_by_tenant(
-        self, tenant_id: str, skip: int = 0, limit: int = 100
-    ) -> list[AuditLogRecord]:
+    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[AuditLogRecord]:
         records = [record for record in self._items if record.tenant_id == tenant_id]
         return records[skip : skip + limit]
 
     def clear(self) -> None:
         with self._lock:
             self._items.clear()
+
+
+class BaseUserRepository(ABC):
+    @abstractmethod
+    def create_user(self, user: dict) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_user(self, user_id: str) -> dict | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_users(self, tenant_id: str | None = None) -> list[dict]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_user(self, user_id: str, updates: dict) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_user(self, user_id: str) -> None:
+        raise NotImplementedError
+
+
+class InMemoryUserRepository(BaseUserRepository):
+    def __init__(self) -> None:
+        self._items: dict[str, dict] = {}
+        self._lock = RLock()
+
+    def create_user(self, user: dict) -> dict:
+        with self._lock:
+            self._items[user["user_id"]] = user
+            return user
+
+    def get_user(self, user_id: str) -> dict | None:
+        return self._items.get(user_id)
+
+    def list_users(self, tenant_id: str | None = None) -> list[dict]:
+        if tenant_id:
+            return [u for u in self._items.values() if u.get("tenant_id") == tenant_id]
+        return list(self._items.values())
+
+    def update_user(self, user_id: str, updates: dict) -> dict:
+        with self._lock:
+            user = self._items.get(user_id)
+            if not user:
+                raise KeyError("user not found")
+            user.update(updates)
+            self._items[user_id] = user
+            return user
+
+    def delete_user(self, user_id: str) -> None:
+        with self._lock:
+            if user_id in self._items:
+                del self._items[user_id]
 
 
 # Legacy aliases for backwards compatibility

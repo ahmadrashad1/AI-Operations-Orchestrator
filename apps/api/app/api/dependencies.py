@@ -4,10 +4,11 @@ from fastapi import Depends, HTTPException, status
 
 from app.bootstrap import get_container
 from app.core.security import Principal, get_current_principal
-from app.db.postgres import PostgresUserRepository
+from app.db.repositories import BaseUserRepository
 from app.observability.telemetry import MetricsCollector
 from app.services.reporting import ReportingService
 from app.services.documents import DocumentIngestionService
+from app.services.users import UserService
 
 
 def get_workflow_service():
@@ -40,7 +41,7 @@ def get_document_service() -> DocumentIngestionService:
     return service
 
 
-def get_user_repository() -> PostgresUserRepository:
+def get_user_repository() -> BaseUserRepository:
     repo = get_container().user_repository
     if repo is None:
         raise HTTPException(
@@ -48,6 +49,17 @@ def get_user_repository() -> PostgresUserRepository:
             detail="Authentication store is unavailable (PostgreSQL required).",
         )
     return repo
+
+
+def get_user_service() -> UserService:
+    svc = getattr(get_container(), "user_service", None)
+    if svc is None:
+        # try to build from repository
+        repo = get_user_repository()
+        svc = UserService(repo)
+        # cache for future calls
+        setattr(get_container(), "user_service", svc)
+    return svc
 
 
 def require_roles(*allowed_roles: str) -> Callable[[Principal], Principal]:
