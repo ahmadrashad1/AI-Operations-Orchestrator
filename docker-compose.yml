@@ -50,6 +50,8 @@ services:
       # Required on API: login + validating Bearer tokens.
       APP_JWT_SECRET_KEY: ${APP_JWT_SECRET_KEY:-dev-secret-change-in-production-use-long-random-string}
       APP_METRICS_PORT: ${APP_METRICS_PORT:-9187}
+      APP_ENABLE_TRACING: ${APP_ENABLE_TRACING:-true}
+      APP_JAEGER_AGENT_URL: ${APP_JAEGER_AGENT_URL:-jaeger:6831}
     ports:
       - "8000:8000"
         - "9187:9187"
@@ -63,6 +65,17 @@ services:
       - "9090:9090"
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api
+  jaeger:
+    image: jaegertracing/all-in-one:1.41
+    environment:
+      COLLECTOR_ZIPKIN_HTTP_PORT: 9411
+    ports:
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "16686:16686"
+      - "14268:14268"
     depends_on:
       - api
 
