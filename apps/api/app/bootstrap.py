@@ -12,6 +12,7 @@ from app.db.postgres import PostgresAuditRepository, PostgresWorkflowRepository
 from app.db.repositories import InMemoryAuditRepository, InMemoryWorkflowRepository
 from app.db.repositories import InMemoryUserRepository
 from app.db.repositories import InMemoryTenantRepository
+from app.db.repositories import InMemoryTokenBlacklistRepository
 from app.integrations.registry import ConnectorRegistry
 from app.integrations.slack import SlackApprovalConnector
 from app.orchestration.runtime import WorkflowRuntime
@@ -118,9 +119,14 @@ class ServiceContainer:
         try:
             from app.db.postgres import PostgresUserRepository
 
+            # Postgres-backed token blacklist repository
+            from app.db.postgres import PostgresTokenBlacklistRepository
+
             self.user_repository = PostgresUserRepository(engine)
+            self.token_blacklist_repository = PostgresTokenBlacklistRepository(engine)
         except Exception:
             self.user_repository = None
+            self.token_blacklist_repository = None
 
     def _init_in_memory(self, settings) -> None:
         """Initialize in-memory storage (for development/testing)."""
@@ -130,6 +136,8 @@ class ServiceContainer:
         # lightweight in-memory user repository for dev/test
         self.user_repository = InMemoryUserRepository()
         self.user_service = UserService(self.user_repository)
+        # in-memory token blacklist
+        self.token_blacklist_repository = InMemoryTokenBlacklistRepository()
 
     def reset_state(self) -> None:
         """Clear all state (for testing)."""

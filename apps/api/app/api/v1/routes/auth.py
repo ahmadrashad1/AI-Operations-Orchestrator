@@ -3,8 +3,11 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials
+from datetime import datetime, timezone
 
-from app.api.dependencies import get_user_repository
+from app.api.dependencies import get_user_repository, get_token_blacklist_repository
+from app.core.security import security
 from app.core.auth import JWTHandler, verify_password
 from app.core.config import get_settings
 from app.db.postgres import PostgresUserRepository
@@ -113,3 +116,56 @@ def refresh_tokens(
         refresh_token=refresh_token,
         expires_in=expires_in,
     )
+
+
+@router.post("/revoke")
+def revoke_current_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    blacklist_repo=Depends(get_token_blacklist_repository),
+) -> dict:
+    """Revoke the token supplied in the Authorization header."""
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing token",
+        )
+    handler = JWTHandler(app_settings=get_settings())
+    try:
+        claims = handler.decode_token(credentials.credentials)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+
+    # compute expiration datetime
+    exp = claims.exp
+    if isinstance(exp, (int, float)):
+        expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
+    else:
+        expires_at = exp
+
+    blacklist_repo.add(claims.jti, claims.user_id, expires_at)
+    return {"revoked": True}
+
+
+@router.post("/revoke/refresh")
+def revoke_refresh_token(
+    payload: RefreshTokenRequest,
+    blacklist_repo=Depends(get_token_blacklist_repository),
+) -> dict:
+    """Revoke a refresh token provided in the request body."""
+    handler = JWTHandler(app_settings=get_settings())
+    try:
+        claims = handler.decode_token(payload.refresh_token)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+
+    if not handler.verify_token_type(claims, "refresh"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token is not a refresh token")
+
+    exp = claims.exp
+    if isinstance(exp, (int, float)):
+        expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
+    else:
+        expires_at = exp
+
+    blacklist_repo.add(claims.jti, claims.user_id, expires_at)
+    return {"revoked": True}

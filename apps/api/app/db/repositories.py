@@ -209,6 +209,58 @@ class InMemoryTenantRepository(BaseTenantRepository):
         return list(self._items.values())
 
 
+class BaseTokenBlacklistRepository(ABC):
+    @abstractmethod
+    def add(self, jti: str, user_id: str, expires_at) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_blacklisted(self, jti: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def clear(self) -> None:
+        raise NotImplementedError
+
+
+class InMemoryTokenBlacklistRepository(BaseTokenBlacklistRepository):
+    """Simple in-memory token blacklist for development/testing."""
+
+    def __init__(self) -> None:
+        self._items: dict[str, dict] = {}
+        self._lock = RLock()
+
+    def add(self, jti: str, user_id: str, expires_at) -> None:
+        with self._lock:
+            self._items[jti] = {"user_id": user_id, "expires_at": expires_at}
+
+    def is_blacklisted(self, jti: str) -> bool:
+        with self._lock:
+            entry = self._items.get(jti)
+            if not entry:
+                return False
+            # Optionally remove expired entries
+            expires_at = entry.get("expires_at")
+            try:
+                from datetime import datetime, timezone
+
+                if isinstance(expires_at, (int, float)):
+                    expires_dt = datetime.fromtimestamp(expires_at, tz=timezone.utc)
+                else:
+                    expires_dt = expires_at
+                if expires_dt and expires_dt < datetime.now(timezone.utc):
+                    # expired, remove
+                    del self._items[jti]
+                    return False
+            except Exception:
+                pass
+            return True
+
+    def clear(self) -> None:
+        with self._lock:
+            self._items.clear()
+
+
 # Legacy aliases for backwards compatibility
 WorkflowRepository = InMemoryWorkflowRepository
 AuditRepository = InMemoryAuditRepository

@@ -1,25 +1,39 @@
 """PostgreSQL repository implementations using SQLAlchemy."""
+
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import AuditLogRecordModel, TenantModel, UserModel, WorkflowStateModel
-from app.db.repositories import (
-    BaseAuditRepository,
-    BaseTenantRepository,
-    BaseUserRepository,
-    BaseWorkflowRepository,
+from app.db.models import (
+    AuditLogRecordModel,
+    UserModel,
+    WorkflowStateModel,
+    TokenBlacklistModel,
 )
+from app.db.repositories import BaseAuditRepository, BaseWorkflowRepository
+from app.db.repositories import BaseTokenBlacklistRepository
 from app.domain.models import AuditLogRecord, WorkflowState
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
+
+
+class PostgresUserRepository:
+    """Lookup users stored in PostgreSQL (login / RBAC source of truth)."""
+
+    def __init__(self, engine: Engine) -> None:
+        self.engine = engine
+
+    def get_by_email(self, email: str) -> UserModel | None:
+        normalized = email.strip().lower()
+        with Session(self.engine) as session:
+            stmt = select(UserModel).where(func.lower(UserModel.email) == normalized)
+            return session.scalar(stmt)
 
 
 class PostgresWorkflowRepository(BaseWorkflowRepository):
@@ -34,16 +48,14 @@ class PostgresWorkflowRepository(BaseWorkflowRepository):
             db_workflow = WorkflowStateModel(
                 workflow_id=workflow.workflow_id,
                 tenant_id=workflow.tenant_id,
-                user_id=workflow.user_id,
+                user_id=workflow.submitted_by,
                 request_text=workflow.request_text,
                 status=workflow.status.value,
                 current_state=workflow.current_state,
-                extraction=(
-                    workflow.extraction.model_dump() if workflow.extraction else None
-                ),
-                policy_results=(
-                    workflow.policy_results.model_dump() if workflow.policy_results else None
-                ),
+                extraction=workflow.extraction.model_dump() if workflow.extraction else None,
+                policy_results=workflow.policy_results.model_dump()
+                if workflow.policy_results
+                else None,
                 approvals=[approval.model_dump() for approval in workflow.approvals],
                 execution_log=workflow.execution_log,
                 created_at=workflow.created_at,
@@ -87,9 +99,7 @@ class PostgresWorkflowRepository(BaseWorkflowRepository):
 
     def get(self, workflow_id: str) -> WorkflowState:
         with Session(self.engine) as session:
-            stmt = select(WorkflowStateModel).where(
-                WorkflowStateModel.workflow_id == workflow_id
-            )
+            stmt = select(WorkflowStateModel).where(WorkflowStateModel.workflow_id == workflow_id)
             db_workflow = session.scalar(stmt)
 
             if db_workflow is None:
@@ -102,10 +112,7 @@ class PostgresWorkflowRepository(BaseWorkflowRepository):
             return self._orm_to_domain(db_workflow)
 
     def list_by_tenant(
-        self,
-        tenant_id: str,
-        skip: int = 0,
-        limit: int = 100,
+        self, tenant_id: str, skip: int = 0, limit: int = 100
     ) -> list[WorkflowState]:
         with Session(self.engine) as session:
             stmt = (
@@ -137,25 +144,19 @@ class PostgresWorkflowRepository(BaseWorkflowRepository):
         return WorkflowState(
             workflow_id=db_workflow.workflow_id,
             tenant_id=db_workflow.tenant_id,
-            user_id=db_workflow.user_id,
+            submitted_by=db_workflow.user_id,
             request_text=db_workflow.request_text,
             status=WorkflowStatus(db_workflow.status),
             current_state=db_workflow.current_state,
-            extraction=(
-                ExtractedRequest(**db_workflow.extraction)
-                if db_workflow.extraction
-                else None
-            ),
-            policy_results=(
-                PolicyEvaluation(**db_workflow.policy_results)
-                if db_workflow.policy_results
-                else None
-            ),
-            approvals=(
-                [ApprovalRecord(**a) for a in db_workflow.approvals]
-                if db_workflow.approvals
-                else []
-            ),
+            extraction=ExtractedRequest(**db_workflow.extraction)
+            if db_workflow.extraction
+            else None,
+            policy_results=PolicyEvaluation(**db_workflow.policy_results)
+            if db_workflow.policy_results
+            else None,
+            approvals=[ApprovalRecord(**a) for a in db_workflow.approvals]
+            if db_workflow.approvals
+            else [],
             execution_log=db_workflow.execution_log or [],
             created_at=db_workflow.created_at,
             updated_at=db_workflow.updated_at,
@@ -171,13 +172,13 @@ class PostgresAuditRepository(BaseAuditRepository):
     def append(self, record: AuditLogRecord) -> AuditLogRecord:
         with Session(self.engine) as session:
             db_record = AuditLogRecordModel(
-                id=record.id or str(uuid.uuid4()),
+                id=record.log_id,
                 workflow_id=record.workflow_id,
                 tenant_id=record.tenant_id,
                 actor=record.actor,
                 action=record.action,
-                metadata_=record.metadata,
-                created_at=record.created_at,
+                event_metadata=record.metadata,
+                created_at=record.timestamp,
             )
             session.add(db_record)
             session.commit()
@@ -194,7 +195,9 @@ class PostgresAuditRepository(BaseAuditRepository):
             db_records = session.scalars(stmt).all()
             return [self._orm_to_domain(r) for r in db_records]
 
-    def list_by_tenant(self, tenant_id: str, skip: int = 0, limit: int = 100) -> list[AuditLogRecord]:
+    def list_by_tenant(
+        self, tenant_id: str, skip: int = 0, limit: int = 100
+    ) -> list[AuditLogRecord]:
         with Session(self.engine) as session:
             stmt = (
                 select(AuditLogRecordModel)
@@ -216,116 +219,43 @@ class PostgresAuditRepository(BaseAuditRepository):
     def _orm_to_domain(db_record: AuditLogRecordModel) -> AuditLogRecord:
         """Convert ORM model to domain model."""
         return AuditLogRecord(
-            id=db_record.id,
-            workflow_id=db_record.workflow_id,
+            log_id=db_record.id,
             tenant_id=db_record.tenant_id,
+            workflow_id=db_record.workflow_id,
             actor=db_record.actor,
             action=db_record.action,
-            metadata=db_record.metadata_ or {},
-            created_at=db_record.created_at,
+            metadata=db_record.event_metadata or {},
+            timestamp=db_record.created_at,
         )
 
 
-
-class PostgresUserRepository(BaseUserRepository):
-    """PostgreSQL implementation of user repository."""
-
-    def __init__(self, engine: Engine) -> None:
-        self.engine = engine
-
-    def create_user(self, user: dict) -> dict:
-        from sqlalchemy.orm import Session
-
-        with Session(self.engine) as session:
-            db_user = UserModel(
-                user_id=user.get("user_id") or str(uuid.uuid4()),
-                tenant_id=user.get("tenant_id") or "",
-                email=user.get("email"),
-                hashed_password=user.get("hashed_password"),
-                roles=user.get("roles") or [],
-                is_active=user.get("is_active", True),
-                created_at=user.get("created_at") or datetime.now(UTC),
-                updated_at=user.get("created_at") or datetime.now(UTC),
-            )
-            session.add(db_user)
-            session.commit()
-            session.refresh(db_user)
-            return db_user.to_dict()
-
-    def get_user(self, user_id: str) -> dict | None:
-        from sqlalchemy.orm import Session
-
-        with Session(self.engine) as session:
-            stmt = select(UserModel).where(UserModel.user_id == user_id)
-            db_user = session.scalar(stmt)
-            return db_user.to_dict() if db_user else None
-
-    def list_users(self, tenant_id: str | None = None) -> list[dict]:
-        from sqlalchemy.orm import Session
-
-        with Session(self.engine) as session:
-            if tenant_id:
-                stmt = select(UserModel).where(UserModel.tenant_id == tenant_id).order_by(
-                    UserModel.created_at.desc()
-                )
-            else:
-                stmt = select(UserModel).order_by(UserModel.created_at.desc())
-            users = session.scalars(stmt).all()
-            return [u.to_dict() for u in users]
-
-    def update_user(self, user_id: str, updates: dict) -> dict:
-        from sqlalchemy.orm import Session
-
-        with Session(self.engine) as session:
-            stmt = select(UserModel).where(UserModel.user_id == user_id)
-            db_user = session.scalar(stmt)
-            if db_user is None:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-            for k, v in updates.items():
-                if hasattr(db_user, k):
-                    setattr(db_user, k, v)
-            db_user.updated_at = datetime.now(UTC)
-            session.commit()
-            session.refresh(db_user)
-            return db_user.to_dict()
-
-    def delete_user(self, user_id: str) -> None:
-        from sqlalchemy.orm import Session
-
-        with Session(self.engine) as session:
-            stmt = select(UserModel).where(UserModel.user_id == user_id)
-            db_user = session.scalar(stmt)
-            if db_user is None:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-            session.delete(db_user)
-            session.commit()
-
-
-class PostgresTenantRepository(BaseTenantRepository):
-    """PostgreSQL implementation of tenant repository."""
+class PostgresTokenBlacklistRepository(BaseTokenBlacklistRepository):
+    """PostgreSQL-backed token blacklist repository."""
 
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
 
-    def create_tenant(self, tenant: dict) -> dict:
-        from sqlalchemy.orm import Session
-
+    def add(self, jti: str, user_id: str, expires_at) -> None:
         with Session(self.engine) as session:
-            db_t = TenantModel(
-                tenant_id=tenant.get("tenant_id"),
-                name=tenant.get("name"),
-                created_at=tenant.get("created_at") or datetime.now(UTC),
-                updated_at=tenant.get("updated_at") or datetime.now(UTC),
-            )
-            session.add(db_t)
+            db_entry = TokenBlacklistModel(jti=jti, user_id=user_id, blacklisted_at=datetime.now(UTC), expires_at=expires_at)
+            session.add(db_entry)
             session.commit()
-            session.refresh(db_t)
-            return db_t.to_dict()
 
-    def list_tenants(self) -> list[dict]:
-        from sqlalchemy.orm import Session
-
+    def is_blacklisted(self, jti: str) -> bool:
         with Session(self.engine) as session:
-            stmt = select(TenantModel).order_by(TenantModel.created_at.desc())
-            tenants = session.scalars(stmt).all()
-            return [t.to_dict() for t in tenants]
+            stmt = select(TokenBlacklistModel).where(TokenBlacklistModel.jti == jti)
+            db_entry = session.scalar(stmt)
+            if db_entry is None:
+                return False
+            # Check expiry
+            if db_entry.expires_at and db_entry.expires_at < datetime.now(UTC):
+                # expired -- remove it
+                session.delete(db_entry)
+                session.commit()
+                return False
+            return True
+
+    def clear(self) -> None:
+        with Session(self.engine) as session:
+            session.query(TokenBlacklistModel).delete()
+            session.commit()

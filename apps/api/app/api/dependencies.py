@@ -53,6 +53,16 @@ def get_user_repository() -> BaseUserRepository:
     return repo
 
 
+def get_token_blacklist_repository():
+    repo = getattr(get_container(), "token_blacklist_repository", None)
+    if repo is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Token blacklist store is unavailable.",
+        )
+    return repo
+
+
 def get_user_service() -> UserService:
     svc = getattr(get_container(), "user_service", None)
     if svc is None:

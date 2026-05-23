@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from app.core.auth import JWTHandler
 from app.core.config import get_settings
+from app.bootstrap import get_container
 
 security = HTTPBearer(auto_error=False)
 
@@ -44,6 +45,25 @@ def get_current_principal(
                 app_settings=settings,
             )
             claims = jwt_handler.decode_token(credentials.credentials)
+            # Check token blacklist (revocation)
+            try:
+                container = get_container()
+                blk_repo = getattr(container, "token_blacklist_repository", None)
+                if blk_repo and claims.jti and blk_repo.is_blacklisted(claims.jti):
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Token revoked",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
+            except HTTPException:
+                raise
+            except Exception:
+                # On any error checking blacklist, fail closed and reject token
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token (blacklist check failed)",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
             return Principal(
                 user_id=claims.user_id,
                 tenant_id=claims.tenant_id,
