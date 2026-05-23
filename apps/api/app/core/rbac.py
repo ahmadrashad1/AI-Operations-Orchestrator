@@ -25,6 +25,11 @@ DEFAULT_PERMISSION_MATRIX: dict[str, list[str]] = {
     "workflow:approve": ["Manager", "Finance"],
     "workflow:admin": ["Admin"],
     "audit:view": ["Admin", "Auditor"],
+    "agent:execute": ["Admin", "Manager"],
+    "event:publish": ["Admin", "Manager", "Auditor"],
+    "metrics:read": ["Admin", "Manager", "Auditor"],
+    "reports:view": ["Admin", "Manager", "Auditor"],
+    "admin:manage": ["Admin"],
 }
 
 

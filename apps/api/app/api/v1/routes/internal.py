@@ -6,7 +6,7 @@ from app.api.dependencies import (
     get_metrics_collector,
     get_reporting_service,
     get_workflow_service,
-    require_roles,
+    require_permission_dep,
 )
 from app.core.security import Principal
 from app.domain.schemas import EventPublishRequest, InternalAgentExecuteRequest, WorkflowEnvelope
@@ -22,7 +22,7 @@ router = APIRouter()
 @router.post("/agent/execute", response_model=WorkflowEnvelope)
 def execute_agent(
     payload: InternalAgentExecuteRequest,
-    principal: Principal = Depends(require_roles("Admin", "Manager")),
+    principal: Principal = Depends(require_permission_dep("agent:execute")),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> WorkflowEnvelope:
     workflow = workflow_service.execute_agent(payload=payload, principal=principal)
@@ -32,7 +32,7 @@ def execute_agent(
 @router.post("/event/publish")
 def publish_event(
     payload: EventPublishRequest,
-    principal: Principal = Depends(require_roles("Admin", "Manager", "Auditor")),
+    principal: Principal = Depends(require_permission_dep("event:publish")),
     audit_service: AuditService = Depends(get_audit_service),
 ) -> dict[str, str]:
     audit_service.log(
@@ -47,7 +47,7 @@ def publish_event(
 
 @router.get("/metrics", response_model=TelemetrySnapshot)
 def read_metrics(
-    principal: Principal = Depends(require_roles("Admin", "Manager", "Auditor")),
+    principal: Principal = Depends(require_permission_dep("metrics:read")),
     metrics_collector: MetricsCollector = Depends(get_metrics_collector),
 ) -> TelemetrySnapshot:
     _ = principal
@@ -56,7 +56,7 @@ def read_metrics(
 
 @router.get("/metrics/prometheus", response_class=PlainTextResponse)
 def read_metrics_prometheus(
-    principal: Principal = Depends(require_roles("Admin", "Manager", "Auditor")),
+    principal: Principal = Depends(require_permission_dep("metrics:read")),
     metrics_collector: MetricsCollector = Depends(get_metrics_collector),
 ) -> PlainTextResponse:
     """Return a Prometheus exposition of the internal telemetry snapshot.
@@ -108,7 +108,7 @@ def read_metrics_prometheus(
 @router.get("/reports/tenant-summary", response_model=TenantReportingSummary)
 def tenant_summary(
     tenant_id: str | None = None,
-    principal: Principal = Depends(require_roles("Admin", "Manager", "Auditor")),
+    principal: Principal = Depends(require_permission_dep("reports:view")),
     reporting_service: ReportingService = Depends(get_reporting_service),
 ) -> TenantReportingSummary:
     return reporting_service.tenant_summary(principal=principal, tenant_id=tenant_id)

@@ -4,7 +4,7 @@ from app.api.dependencies import (
     get_connector_registry,
     get_tenant_service,
     get_user_service,
-    require_roles,
+    require_permission_dep,
 )
 
 router = APIRouter()
@@ -33,7 +33,7 @@ def create_user(
 @router.get("/admin/tenants/{tenant_id}/users", response_model=list[dict])
 def list_users_for_tenant(
     tenant_id: str,
-    principal=Depends(require_roles("Admin", "Manager")),
+    principal=Depends(require_permission_dep("admin:manage")),
     svc=Depends(get_user_service),
 ):
     # Admins can list any tenant; Managers assumed to be tenant-scoped in higher checks
@@ -45,7 +45,7 @@ def list_users_for_tenant(
 def update_roles(
     user_id: str,
     payload: dict,
-    admin=Depends(require_roles("Admin")),
+    admin=Depends(require_permission_dep("admin:manage")),
     svc=Depends(get_user_service),
 ):
     roles = payload.get("roles")
@@ -61,7 +61,7 @@ def update_roles(
 @router.delete("/admin/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(
     user_id: str,
-    admin=Depends(require_roles("Admin")),
+    admin=Depends(require_permission_dep("admin:manage")),
     svc=Depends(get_user_service),
 ):
     svc.disable_user(user_id)
@@ -71,7 +71,7 @@ def delete_user(
 @router.post("/admin/tenants", status_code=status.HTTP_201_CREATED)
 def create_tenant(
     payload: dict,
-    admin=Depends(require_roles("Admin")),
+    admin=Depends(require_permission_dep("admin:manage")),
     svc=Depends(get_tenant_service),
 ):
     if "tenant_id" not in payload or "name" not in payload:
@@ -84,7 +84,7 @@ def create_tenant(
 
 @router.get("/admin/tenants", response_model=list[dict])
 def list_tenants(
-    admin=Depends(require_roles("Admin")),
+    admin=Depends(require_permission_dep("admin:manage")),
     svc=Depends(get_tenant_service),
 ):
     return svc.list_tenants()
@@ -92,7 +92,7 @@ def list_tenants(
 
 @router.get("/admin/connectors")
 def list_connectors(
-    admin=Depends(require_roles("Admin")),
+    admin=Depends(require_permission_dep("admin:manage")),
     registry=Depends(get_connector_registry),
 ):
     return {
@@ -106,7 +106,7 @@ def list_connectors(
 @router.post("/admin/connectors/register")
 def register_connector(
     payload: dict,
-    admin=Depends(require_roles("Admin")),
+    admin=Depends(require_permission_dep("admin:manage")),
     registry=Depends(get_connector_registry),
 ):
     # payload expected: {"type": "slack", "config": { ... }}
