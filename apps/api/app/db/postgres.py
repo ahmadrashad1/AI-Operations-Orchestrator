@@ -14,6 +14,7 @@ from app.db.models import (
     UserModel,
     WorkflowStateModel,
     TokenBlacklistModel,
+    PermissionModel,
 )
 from app.db.repositories import BaseAuditRepository, BaseWorkflowRepository
 from app.db.repositories import BaseTokenBlacklistRepository

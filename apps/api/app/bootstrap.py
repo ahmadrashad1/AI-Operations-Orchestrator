@@ -119,13 +119,28 @@ class ServiceContainer:
         try:
             from app.db.postgres import PostgresUserRepository
 
-            # Postgres-backed token blacklist repository
+            # Postgres-backed token blacklist and permission repositories
             from app.db.postgres import PostgresTokenBlacklistRepository
             from app.db.postgres import PostgresPermissionRepository
 
             self.user_repository = PostgresUserRepository(engine)
             self.token_blacklist_repository = PostgresTokenBlacklistRepository(engine)
             self.permission_repository = PostgresPermissionRepository(engine)
+
+            # Seed default permissions if missing
+            try:
+                from app.core.rbac import DEFAULT_PERMISSION_MATRIX
+
+                # Upsert each permission into the DB-backed repository
+                for perm, roles in DEFAULT_PERMISSION_MATRIX.items():
+                    try:
+                        self.permission_repository.upsert_permission(permission=perm, roles=roles)
+                    except Exception:
+                        # Ignore individual seed failures
+                        pass
+            except Exception:
+                # If seeding fails, continue but print a warning
+                print("Warning: Failed to seed default permissions")
         except Exception:
             self.user_repository = None
             self.token_blacklist_repository = None
