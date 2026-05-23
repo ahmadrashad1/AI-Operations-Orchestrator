@@ -11,6 +11,7 @@ from app.services.documents import DocumentIngestionService
 from app.services.reporting import ReportingService
 from app.services.tenants import TenantService
 from app.services.users import UserService
+from app.core.rbac import require_permission
 
 
 def get_workflow_service():
@@ -108,3 +109,8 @@ def require_roles(*allowed_roles: str) -> Callable[[Principal], Principal]:
         return principal
 
     return dependency
+
+
+# Re-export require_permission for route modules to import from dependencies
+def require_permission_dep(permission: str) -> Callable[[Principal], Principal]:
+    return require_permission(permission)
