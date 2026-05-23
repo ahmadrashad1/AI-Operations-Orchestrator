@@ -259,3 +259,36 @@ class PostgresTokenBlacklistRepository(BaseTokenBlacklistRepository):
         with Session(self.engine) as session:
             session.query(TokenBlacklistModel).delete()
             session.commit()
+
+class PostgresPermissionRepository:
+    """Postgres-backed permission repository."""
+
+    def __init__(self, engine: Engine) -> None:
+        self.engine = engine
+
+    def list_permissions(self) -> dict[str, list[str]]:
+        from sqlalchemy import select
+
+        with Session(self.engine) as session:
+            stmt = select(PermissionModel)
+            rows = session.scalars(stmt).all()
+            return {r.permission: r.roles or [] for r in rows}
+
+    def upsert_permission(self, permission: str, roles: list[str], description: str | None = None) -> None:
+        from sqlalchemy import select
+
+        with Session(self.engine) as session:
+            stmt = select(PermissionModel).where(PermissionModel.permission == permission)
+            row = session.scalar(stmt)
+            if row is None:
+                row = PermissionModel(permission=permission, roles=roles, description=description)
+                session.add(row)
+            else:
+                row.roles = roles
+                row.description = description
+            session.commit()
+
+    def clear(self) -> None:
+        with Session(self.engine) as session:
+            session.query(PermissionModel).delete()
+            session.commit()

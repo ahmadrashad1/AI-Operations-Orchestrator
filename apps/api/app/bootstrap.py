@@ -121,12 +121,15 @@ class ServiceContainer:
 
             # Postgres-backed token blacklist repository
             from app.db.postgres import PostgresTokenBlacklistRepository
+            from app.db.postgres import PostgresPermissionRepository
 
             self.user_repository = PostgresUserRepository(engine)
             self.token_blacklist_repository = PostgresTokenBlacklistRepository(engine)
+            self.permission_repository = PostgresPermissionRepository(engine)
         except Exception:
             self.user_repository = None
             self.token_blacklist_repository = None
+            self.permission_repository = None
 
     def _init_in_memory(self, settings) -> None:
         """Initialize in-memory storage (for development/testing)."""
@@ -138,6 +141,10 @@ class ServiceContainer:
         self.user_service = UserService(self.user_repository)
         # in-memory token blacklist
         self.token_blacklist_repository = InMemoryTokenBlacklistRepository()
+        # in-memory permission store
+        from app.db.repositories import InMemoryPermissionRepository
+
+        self.permission_repository = InMemoryPermissionRepository()
 
     def reset_state(self) -> None:
         """Clear all state (for testing)."""

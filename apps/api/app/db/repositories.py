@@ -261,6 +261,40 @@ class InMemoryTokenBlacklistRepository(BaseTokenBlacklistRepository):
             self._items.clear()
 
 
+class BasePermissionRepository(ABC):
+    @abstractmethod
+    def list_permissions(self) -> dict[str, list[str]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def upsert_permission(self, permission: str, roles: list[str], description: str | None = None) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def clear(self) -> None:
+        raise NotImplementedError
+
+
+class InMemoryPermissionRepository(BasePermissionRepository):
+    """In-memory permission store used for development/testing."""
+
+    def __init__(self) -> None:
+        self._items: dict[str, dict] = {}
+        self._lock = RLock()
+
+    def list_permissions(self) -> dict[str, list[str]]:
+        with self._lock:
+            return {k: v.get("roles", []) for k, v in self._items.items()}
+
+    def upsert_permission(self, permission: str, roles: list[str], description: str | None = None) -> None:
+        with self._lock:
+            self._items[permission] = {"roles": roles, "description": description}
+
+    def clear(self) -> None:
+        with self._lock:
+            self._items.clear()
+
+
 # Legacy aliases for backwards compatibility
 WorkflowRepository = InMemoryWorkflowRepository
 AuditRepository = InMemoryAuditRepository

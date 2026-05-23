@@ -99,6 +99,16 @@ def get_tenant_service() -> TenantService:
     return svc
 
 
+def get_permission_repository():
+    repo = getattr(get_container(), "permission_repository", None)
+    if repo is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Permission store is unavailable.",
+        )
+    return repo
+
+
 def require_roles(*allowed_roles: str) -> Callable[[Principal], Principal]:
     def dependency(principal: Principal = Depends(get_current_principal)) -> Principal:
         if not principal.has_any_role(*allowed_roles):

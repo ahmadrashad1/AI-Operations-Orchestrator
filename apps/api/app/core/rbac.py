@@ -14,6 +14,8 @@ from typing import Callable
 from fastapi import Depends, HTTPException, status
 
 from app.core.security import get_current_principal, Principal
+from app.bootstrap import get_container
+from functools import lru_cache
 
 
 # Default permission -> allowed roles mapping. Update as needed.
@@ -32,7 +34,24 @@ def get_permission_matrix() -> dict[str, list[str]]:
     Replace this function with a DB fetch or external policy call if
     you want dynamic permissions later.
     """
+    # Try DB-backed store first (if available), otherwise fall back to defaults
+    try:
+        container = get_container()
+        repo = getattr(container, "permission_repository", None)
+        if repo:
+            # Cache using lru_cache wrapper via inner helper
+            return _load_permissions_from_repo(repo)
+    except Exception:
+        pass
     return DEFAULT_PERMISSION_MATRIX
+
+
+@lru_cache(maxsize=1)
+def _load_permissions_from_repo(repo) -> dict[str, list[str]]:
+    try:
+        return repo.list_permissions()
+    except Exception:
+        return DEFAULT_PERMISSION_MATRIX
 
 
 def require_permission(permission: str) -> Callable[[Principal], Principal]:
