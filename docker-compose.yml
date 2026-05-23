@@ -53,7 +53,6 @@ services:
       APP_ENABLE_TRACING: ${APP_ENABLE_TRACING:-true}
       APP_JAEGER_AGENT_URL: ${APP_JAEGER_AGENT_URL:-jaeger:6831}
     ports:
-    ports:
       - "8000:8000"
       - "9187:9187"
     depends_on:
