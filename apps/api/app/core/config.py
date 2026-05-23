@@ -17,16 +17,18 @@ class Settings(BaseSettings):
     tenant_header: str = "x-tenant-id"
     manager_approval_threshold: float = 3000.0
     finance_approval_threshold: float = 5000.0
-    slack_webhook_url: str = Field(
-        default="https://example.invalid/webhook", alias="APP_SLACK_WEBHOOK_URL"
-    )
+    slack_webhook_url: str = Field(default="https://example.invalid/webhook", alias="APP_SLACK_WEBHOOK_URL")
     # JWT configuration
-    jwt_secret_key: str = Field(
-        default="dev-secret-change-in-production", alias="APP_JWT_SECRET_KEY"
-    )
+    jwt_secret_key: str = Field(default="dev-secret-change-in-production", alias="APP_JWT_SECRET_KEY")
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60
     jwt_refresh_token_expire_days: int = 7
+    # Metrics and tracing
+    metrics_port: int = Field(default=9187, alias="APP_METRICS_PORT")
+    enable_prometheus_server: bool = Field(default=True, alias="APP_ENABLE_PROMETHEUS")
+    enable_tracing: bool = Field(default=False, alias="APP_ENABLE_TRACING")
+    jaeger_agent_url: str | None = Field(default=None, alias="APP_JAEGER_AGENT_URL")
+    otlp_endpoint: str | None = Field(default=None, alias="APP_OTLP_ENDPOINT")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -34,3 +36,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+

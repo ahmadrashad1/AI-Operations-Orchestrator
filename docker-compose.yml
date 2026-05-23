@@ -49,11 +49,22 @@ services:
       APP_SLACK_WEBHOOK_URL: ${APP_SLACK_WEBHOOK_URL:-https://example.invalid/webhook}
       # Required on API: login + validating Bearer tokens.
       APP_JWT_SECRET_KEY: ${APP_JWT_SECRET_KEY:-dev-secret-change-in-production-use-long-random-string}
+      APP_METRICS_PORT: ${APP_METRICS_PORT:-9187}
     ports:
       - "8000:8000"
+        - "9187:9187"
     depends_on:
       - postgres
       - redis
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api
 
   api-test:
     image: ai-operations-orchestrator-api-test:ci
